@@ -39,6 +39,7 @@ class Logger:
     Logs are formatted with timestamps, function context, and optional error tracebacks, and written to organization-specific log files.
     Provides methods to clear logs and prevent duplicate log entries.
     """
+
     def __init__(self, log_dir: str = PathConfig.LOG_DIR):
         """
         Initializes the Logger instance by setting up log directory paths, log file mappings for each log level, ensuring the log directory exists, and initializing the log cache to prevent duplicate entries.
@@ -56,7 +57,7 @@ class Logger:
         self._log_cache: set[int] = set()
 
     def _ensure_log_directory(self) -> None:
-        """ 
+        """
         Ensure that the log directory exists by creating it and any necessary parent directories if they do not already exist.
         """
         self.log_dir.mkdir(parents=True, exist_ok=True)

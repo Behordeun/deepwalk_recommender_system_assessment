@@ -26,6 +26,7 @@ class DeepWalk:
     Methods:
         get_embedding(node_id): Returns the embedding vector for the specified node ID as a list, or None if the node is not present in the model.
     """
+
     def __init__(self, model_path: str):
         """
         Initializes the DeepWalk instance by loading a pre-trained Word2Vec model from the specified file path.

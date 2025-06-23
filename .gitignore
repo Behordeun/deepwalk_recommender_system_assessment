@@ -137,3 +137,4 @@ __pycache__
 *.zip
 .coverage
 logs
+recommendations_output.json

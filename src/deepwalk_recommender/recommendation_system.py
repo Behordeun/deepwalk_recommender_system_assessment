@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 08:16:08
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-23 23:23:29
+LastEditTime: 2025-06-23 23:47:31
 FilePath: src/deepwalk_recommender/recommendation_system.py
 Description: This script implements a recommendation system using a DeepWalk-based approach.
 """
@@ -17,17 +17,31 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 class RecommendationSystem:
     """
-    RecommendationSystem provides movie recommendations using DeepWalk-based embeddings and user-movie interaction data.
-    It supports loading MovieLens 100k data, predicting ratings, generating diverse recommendations, adding new interactions, and retrieving user or movie information.
+    Provides movie recommendations using DeepWalk-based embeddings and user-movie interactions.
+
+    This system combines graph-based embeddings with content-based features to generate
+    personalized recommendations. It leverages:
+    - User and movie embeddings from DeepWalk
+    - Movie genre information
+    - Rating popularity statistics
+
+    Attributes:
+        model (Word2Vec): Trained DeepWalk model
+        df (pd.DataFrame): User-movie ratings data
+        user_movie_matrix (pd.DataFrame): Pivoted user-movie interaction matrix
+        movies_df (pd.DataFrame): Movie metadata (ID, title, genres, etc.)
+        users_df (pd.DataFrame): User metadata (ID, age, gender, occupation, etc.)
     """
+
     def __init__(self, model_path, data_path, ml_100k_dir):
         """
-        Initialize the RecommendationSystem by loading the DeepWalk model, user-movie interaction data, and MovieLens 100k user and movie metadata.
+        Initialize the RecommendationSystem by loading embeddings, ratings, and metadata.
 
         Args:
-            model_path (str or Path): Path to the trained Word2Vec model.
-            data_path (str or Path): Path to the user-movie ratings CSV file.
-            ml_100k_dir (str or Path): Directory containing MovieLens 100k files ("u.item" and "u.user").
+            model_path (str or Path): Path to the trained Word2Vec model
+            data_path (str or Path): Path to user-movie ratings CSV file
+            ml_100k_dir (str or Path): Directory containing MovieLens 100k files
+                                       ("u.item" for movies, "u.user" for users)
         """
         self.model = Word2Vec.load(str(model_path))
         self.df = pd.read_csv(str(data_path))
@@ -37,7 +51,15 @@ class RecommendationSystem:
 
     def _create_user_movie_matrix(self):
         """
-        Generate a user-movie interaction matrix with users as rows, movies as columns, and ratings as values. Unrated entries are filled with 0.
+        Generate user-movie interaction matrix with ratings.
+
+        Creates a pivot table where:
+        - Rows represent users
+        - Columns represent movies
+        - Values represent ratings (0 for unrated)
+
+        Returns:
+            pd.DataFrame: User-movie matrix with dimensions [users x movies]
         """
         return self.df.pivot_table(
             index="user_id", columns="movie_id", values="rating", fill_value=0
@@ -46,13 +68,15 @@ class RecommendationSystem:
     @staticmethod
     def _load_movies(movies_path):
         """
-        Load the MovieLens 100k movie metadata from the specified file path.
+        Load movie metadata from MovieLens 100k format.
 
         Args:
-            movies_path (str or Path): Path to the MovieLens 'u.item' file.
+            movies_path (str or Path): Path to 'u.item' file
 
         Returns:
-            pd.DataFrame: DataFrame containing movie information with columns for movie ID, title, release dates, genres, and other metadata.
+            pd.DataFrame: Movie metadata with columns:
+                movie_id, title, release_date, video_release_date, imdb_url,
+                and 19 genre indicators (Action, Adventure, etc.)
         """
         column_names = [
             "movie_id",
@@ -81,20 +105,26 @@ class RecommendationSystem:
             "Western",
         ]
         movies_df = pd.read_csv(
-            movies_path, sep="|", names=column_names, encoding="latin-1"
+            movies_path,
+            sep="|",
+            names=column_names,
+            encoding="latin-1",
+            usecols=range(len(column_names)),  # Ensure correct column alignment
         )
+        movies_df["movie_id"] = movies_df["movie_id"].astype(int)
         return movies_df
 
     @staticmethod
     def _load_users(users_path):
         """
-        Load the MovieLens 100k user metadata from the specified file path.
+        Load user metadata from MovieLens 100k format.
 
         Args:
-            users_path (str or Path): Path to the MovieLens 'u.user' file.
+            users_path (str or Path): Path to 'u.user' file
 
         Returns:
-            pd.DataFrame: DataFrame containing user information with columns for user ID, age, gender, occupation, and zip code.
+            pd.DataFrame: User metadata with columns:
+                user_id, age, gender, occupation, zip_code
         """
         column_names = ["user_id", "age", "gender", "occupation", "zip_code"]
         users_df = pd.read_csv(users_path, sep="|", names=column_names)
@@ -102,13 +132,13 @@ class RecommendationSystem:
 
     def get_user_embedding(self, user_id):
         """
-        Return the DeepWalk embedding vector for the specified user.
+        Retrieve DeepWalk embedding for a user.
 
         Args:
-            user_id (int): The user ID.
+            user_id (int): User ID
 
         Returns:
-            np.ndarray or None: The embedding vector if available, otherwise None.
+            np.ndarray or None: Embedding vector if exists, else None
         """
         user_node = f"u_{user_id}"
         if user_node in self.model.wv:
@@ -117,13 +147,13 @@ class RecommendationSystem:
 
     def get_movie_embedding(self, movie_id):
         """
-        Return the DeepWalk embedding vector for the specified movie.
+        Retrieve DeepWalk embedding for a movie.
 
         Args:
-            movie_id (int): The movie ID.
+            movie_id (int): Movie ID
 
         Returns:
-            np.ndarray or None: The embedding vector if available, otherwise None.
+            np.ndarray or None: Embedding vector if exists, else None
         """
         movie_node = f"m_{movie_id}"
         if movie_node in self.model.wv:
@@ -132,41 +162,59 @@ class RecommendationSystem:
 
     def predict_rating(self, user_id, movie_id):
         """
-        Predict the rating a user would give to a movie using cosine similarity between their DeepWalk embeddings.
+        Predict rating a user would give to a movie using embedding similarity.
+
+        Formula:
+            rating = 1 + 4 * (cosine_similarity + 1) / 2
+            (maps [-1,1] similarity to [1,5] rating scale)
 
         Args:
-            user_id (int): The user ID.
-            movie_id (int): The movie ID.
+            user_id (int): User ID
+            movie_id (int): Movie ID
 
         Returns:
-            float: Predicted rating in the range [1, 5], or 3.0 if embeddings are unavailable.
+            float: Predicted rating between 1-5, or 3.0 if embeddings missing
         """
         user_embedding = self.get_user_embedding(user_id)
         movie_embedding = self.get_movie_embedding(movie_id)
 
         if user_embedding is not None and movie_embedding is not None:
             similarity = cosine_similarity([user_embedding], [movie_embedding])[0][0]
-            # Fixed formula: Map [-1, 1] to [1, 5]
             predicted_rating = 1 + 4 * (similarity + 1) / 2
             return max(1, min(5, predicted_rating))
-        return 3.0  # Default rating if embeddings not found
+        return 3.0  # Default rating for missing embeddings
 
     def get_recommendations(self, user_id, top_k=5):
         """
-        Generate a diverse list of top-k movie recommendations for a user based on predicted ratings, genre preferences, and movie popularity.
+        Generate diverse movie recommendations for a user.
+
+        Recommendation score combines:
+        - Predicted rating (60%)
+        - Genre match with user's preferences (20%)
+        - Movie popularity (20%)
+
+        Ensures diversity by limiting one movie per primary genre.
 
         Args:
-            user_id (int): The user ID for whom to generate recommendations.
-            top_k (int, optional): Number of recommendations to return. Defaults to 5.
+            user_id (int): User ID to generate recommendations for
+            top_k (int): Number of recommendations to return
 
         Returns:
-            list of dict: Recommended movies with details including title, genres, score, confidence, popularity label, and explanation.
+            list[dict]: Recommended movies with:
+                similar_movie_id: Movie ID
+                title: Movie title
+                genres: List of genres
+                score: Recommendation score [0-5]
+                prob: Confidence percentage [50-99]
+                popularity: Popularity category
+                explanation: Recommendation rationale
         """
+        # Get movies user hasn't rated
         user_movies = set(self.df[self.df["user_id"] == user_id]["movie_id"])
         valid_movies = set(self.movies_df["movie_id"])
         unrated_movies = valid_movies - user_movies
 
-        # Genre preferences from rated movies
+        # Determine user's genre preferences from rated movies
         genre_cols = self.movies_df.columns[5:]
         rated_movies = self.movies_df[self.movies_df["movie_id"].isin(user_movies)]
         user_genres = []
@@ -174,20 +222,12 @@ class RecommendationSystem:
             user_genres.extend([g for g in genre_cols if row[g] == 1])
         top_user_genres = set([g for g, _ in Counter(user_genres).most_common(3)])
 
-        # Popularity mapping (normalize by total count)
+        # Calculate normalized popularity scores
         rating_counts = self.df["movie_id"].value_counts()
         popularity = rating_counts / rating_counts.max()
 
         def get_popularity_label(movie_id):
-            """
-            Return a popularity label for a movie based on its rating count.
-
-            Args:
-                movie_id (int): The movie ID.
-
-            Returns:
-                str: Popularity label such as "Critically acclaimed", "Popular", "Rarely rated", or "Hidden gem".
-            """
+            """Categorize movie based on rating count."""
             count = rating_counts.get(movie_id, 0)
             if count >= 500:
                 return "Critically acclaimed"
@@ -201,27 +241,29 @@ class RecommendationSystem:
         recommendations = []
 
         for movie_id in unrated_movies:
+            # Calculate predicted rating
             predicted_rating = self.predict_rating(user_id, movie_id)
-            confidence = min(99, max(50, int(predicted_rating * 20)))
+            confidence = min(99, max(50, int(predicted_rating * 20)))  # 50-99%
 
+            # Get movie metadata
             movie_info = self.movies_df[self.movies_df["movie_id"] == movie_id].iloc[0]
             movie_genres = [g for g in genre_cols if movie_info[g] == 1]
 
-            # Genre overlap score (0–5)
+            # Calculate genre match score (0-5)
             genre_overlap = len(top_user_genres.intersection(movie_genres)) / max(
                 len(movie_genres), 1
             )
             genre_score = 5 * genre_overlap
 
-            # Popularity score (0–5)
+            # Calculate popularity score (0-5)
             popularity_score = popularity.get(movie_id, 0) * 5
 
-            # Final score
+            # Combine scores for final recommendation score
             final_score = (
                 0.6 * predicted_rating + 0.2 * genre_score + 0.2 * popularity_score
             )
 
-            # Explanation: similar titles by genre
+            # Generate explanation based on similar rated movies
             similar_titles = rated_movies[
                 rated_movies[genre_cols].apply(
                     lambda row, genres=movie_genres: any(row[g] == 1 for g in genres),
@@ -231,7 +273,7 @@ class RecommendationSystem:
             explanation = (
                 f"Recommended because you liked: {', '.join(similar_titles[:2])}"
                 if similar_titles
-                else "Similar to your preferences"
+                else "Based on your overall preferences"
             )
 
             recommendations.append(
@@ -246,7 +288,7 @@ class RecommendationSystem:
                 }
             )
 
-        # Sort all by score, then enforce genre diversity
+        # Sort by score and ensure genre diversity
         recommendations.sort(key=lambda x: x["score"], reverse=True)
         unique_genre_recommendations = {}
         for rec in recommendations:
@@ -254,21 +296,21 @@ class RecommendationSystem:
             if primary_genre not in unique_genre_recommendations:
                 unique_genre_recommendations[primary_genre] = rec
 
-        # Final top-k with diversity
-        diverse_top_k = list(unique_genre_recommendations.values())[:top_k]
-        return diverse_top_k
+        return list(unique_genre_recommendations.values())[:top_k]
 
     def add_interaction(self, user_id, movie_id, rating):
         """
-        Add a new user-movie interaction to the dataset and update the user-movie interaction matrix.
+        Add new user-movie interaction to the system.
+
+        Updates both the ratings DataFrame and user-movie matrix.
 
         Args:
-            user_id (int): The user ID.
-            movie_id (int): The movie ID.
-            rating (float or int): The rating given by the user.
+            user_id (int): User ID
+            movie_id (int): Movie ID
+            rating (float): Rating (1-5)
 
         Returns:
-            bool: True if the interaction was added successfully.
+            bool: Always returns True (success)
         """
         new_row = pd.DataFrame(
             {"user_id": [user_id], "movie_id": [movie_id], "rating": [rating]}
@@ -279,25 +321,28 @@ class RecommendationSystem:
 
     def get_all_movies(self):
         """
-        Return a list of all movies in the dataset with their IDs, titles, and release dates, replacing any missing values with empty strings. Logs the DataFrame type and columns for debugging.
+        Retrieve all movies with basic metadata.
+
+        Returns:
+            list[dict]: Movies with:
+                movie_id: Integer movie ID
+                title: Movie title
+                release_date: Release date (empty string if missing)
         """
-        from src.deepwalk_recommender.errorlogger import system_logger
-
-        system_logger.info(f"Movies DF Type: {type(self.movies_df)}")
-        system_logger.info(f"Movies DF Columns: {self.movies_df.columns.tolist()}")
-
-        cleaned_df = self.movies_df[["movie_id", "title", "release_date"]].fillna("")
+        cleaned_df = self.movies_df[["movie_id", "title", "release_date"]].copy()
+        cleaned_df["movie_id"] = cleaned_df["movie_id"].astype(int)
+        cleaned_df = cleaned_df.fillna("")
         return cleaned_df.to_dict(orient="records")
 
     def get_user_info(self, user_id):
         """
-        Retrieve user metadata for the specified user ID.
+        Retrieve metadata for a specific user.
 
         Args:
-            user_id (int): The user ID.
+            user_id (int): User ID
 
         Returns:
-            dict or None: Dictionary of user information if found, otherwise None.
+            dict or None: User metadata if found, else None
         """
         user_info = self.users_df[self.users_df["user_id"] == user_id]
         if not user_info.empty:
