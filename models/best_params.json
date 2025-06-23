@@ -6,9 +6,9 @@
         "walk_length": 80
     },
     "metrics": {
-        "accuracy_score": 0.8398645598194131,
-        "precision_score": 0.8288788615064214,
-        "recall_score": 0.8584524130493394,
-        "f1_score": 0.8434064721204362
+        "accuracy_score": 0.8391422121896163,
+        "precision_score": 0.8288695652173913,
+        "recall_score": 0.8566549833737755,
+        "f1_score": 0.842533256728687
     }
 }
