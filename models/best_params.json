@@ -1,0 +1,14 @@
+{
+    "hyperparameters": {
+        "embedding_size": 128,
+        "window_size": 5,
+        "num_walks": 5,
+        "walk_length": 80
+    },
+    "metrics": {
+        "accuracy_score": 0.8398645598194131,
+        "precision_score": 0.8288788615064214,
+        "recall_score": 0.8584524130493394,
+        "f1_score": 0.8434064721204362
+    }
+}
