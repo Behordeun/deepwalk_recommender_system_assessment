@@ -138,3 +138,5 @@ __pycache__
 .coverage
 logs
 recommendations_output.json
+about-1.md
+about.md
