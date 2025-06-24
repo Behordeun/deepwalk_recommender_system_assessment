@@ -17,7 +17,7 @@ from gensim.models import Word2Vec
 
 from src.deepwalk_recommender.config import PathConfig
 from src.deepwalk_recommender.recommendation_system import RecommendationSystem
-from src.deepwalk_recommender.schemas import UserInfo # Import UserInfo
+from src.deepwalk_recommender.schemas import UserInfo  # Import UserInfo
 
 
 @pytest.fixture(scope="module")
@@ -260,11 +260,11 @@ def test_get_all_movies(rec_system_instance):
 def test_get_user_info(rec_system_instance):
     """Test user metadata retrieval and Pydantic model creation"""
     user_info = rec_system_instance.get_user_info(1)
-    assert isinstance(user_info, UserInfo) # Assert it's a UserInfo object
+    assert isinstance(user_info, UserInfo)  # Assert it's a UserInfo object
     # No user_id in the UserInfo object as per schema definition
     assert user_info.occupation == "technician"
     assert user_info.age == 24
-    assert user_info.zip_code == "85711" # Ensure zip_code is string
+    assert user_info.zip_code == "85711"  # Ensure zip_code is string
 
     # Test non-existent user
     assert rec_system_instance.get_user_info(999) is None

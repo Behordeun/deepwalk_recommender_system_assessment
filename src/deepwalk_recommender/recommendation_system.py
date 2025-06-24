@@ -354,7 +354,7 @@ class RecommendationSystem:
             user_dict = user_data.iloc[0].to_dict()
             # Remove 'user_id' from the dictionary before passing to UserInfo,
             # as UserInfo schema is expected to no longer contain 'user_id'.
-            if 'user_id' in user_dict:
-                del user_dict['user_id']
+            if "user_id" in user_dict:
+                del user_dict["user_id"]
             return UserInfo(**user_dict)
         return None
