@@ -2,19 +2,27 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 09:03:31
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 03:06:51
+LastEditTime: 2025-06-24 15:06:42
 FilePath: tests/test_deepwalk_model.py
-Description: 这是默认设置,可以在设置》工具》File Description中进行配置
+Description: This script contains unit tests for the deepwalk_model module.
 """
 
 from unittest.mock import MagicMock, patch
 
+import networkx as nx
 import numpy as np
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
+from gensim.models import Word2Vec
 
 # Import the DeepWalk class and the FastAPI app from the source modules
-from src.deepwalk_recommender.deepwalk_model import DeepWalk
+from src.deepwalk_recommender.deepwalk_model import (
+    DeepWalk,
+    build_graph,
+    generate_random_walks,
+    train_deepwalk,
+)
 from src.deepwalk_recommender.main import app
 
 # Create a test client for the FastAPI application
@@ -213,7 +221,7 @@ def test_add_interaction_exception(mock_rec_system):
         "/interactions", json={"user_id": 1, "movie_id": 100, "rating": 4.5}
     )
     assert response.status_code == 500
-    # Assert the response detail contains the specific exception message
+    # Assert the response detail contains the specific exception message.
     # This assertion is updated to match the actual error propagation behavior.
     assert "DB connection failed" in response.json()["detail"]
 
@@ -392,3 +400,186 @@ def test_get_all_items_exception(mock_rec_system):
     # Assert the response detail contains the specific exception message.
     # This assertion is updated to match the actual error propagation behavior.
     assert "DB error" in response.json()["detail"]
+
+
+# region New tests for deepwalk_model.py functions
+def test_build_graph_basic():
+    """
+    Test building a graph from a basic DataFrame.
+    """
+    df = pd.DataFrame(
+        {"user_id": [1, 1, 2], "movie_id": [101, 102, 101], "rating": [5, 4, 3]}
+    )
+    graph = build_graph(df)
+
+    assert isinstance(graph, nx.Graph)
+    # Expected nodes: u_1, m_101, m_102, u_2
+    assert sorted(graph.nodes) == sorted(["u_1", "m_101", "m_102", "u_2"])
+    # Convert edges to frozensets for order-independent comparison
+    expected_edges = {
+        frozenset({"u_1", "m_101"}),
+        frozenset({"u_1", "m_102"}),
+        frozenset({"u_2", "m_101"}),
+    }
+    actual_edges = {frozenset(edge) for edge in graph.edges}
+
+    assert actual_edges == expected_edges
+    assert graph.number_of_nodes() == 4
+    assert graph.number_of_edges() == 3
+
+
+def test_build_graph_empty_df():
+    """
+    Test building a graph from an empty DataFrame.
+    """
+    df = pd.DataFrame(columns=["user_id", "movie_id", "rating"])
+    graph = build_graph(df)
+
+    assert isinstance(graph, nx.Graph)
+    assert graph.number_of_nodes() == 0
+    assert graph.number_of_edges() == 0
+
+
+def test_build_graph_duplicate_interactions():
+    """
+    Test building a graph with duplicate interactions.
+    Ensure duplicate interactions don't create duplicate edges in an undirected graph.
+    """
+    df = pd.DataFrame(
+        {
+            "user_id": [1, 1, 1],
+            "movie_id": [101, 101, 102],
+            "rating": [5, 4, 3],  # Rating doesn't matter for graph building
+        }
+    )
+    graph = build_graph(df)
+
+    assert isinstance(graph, nx.Graph)
+    assert sorted(graph.nodes) == sorted(["u_1", "m_101", "m_102"])
+    # (u_1, m_101) and (u_1, m_102) should be the only unique edges
+    expected_edges = {
+        frozenset({"u_1", "m_101"}),
+        frozenset({"u_1", "m_102"}),
+    }
+    actual_edges = {frozenset(edge) for edge in graph.edges}
+    assert actual_edges == expected_edges
+    assert graph.number_of_nodes() == 3
+    assert graph.number_of_edges() == 2
+
+
+def test_generate_random_walks_basic():
+    """
+    Test basic generation of random walks.
+    """
+    df = pd.DataFrame(
+        {
+            "user_id": [1, 1, 2, 3],
+            "movie_id": [101, 102, 101, 103],
+            "rating": [5, 4, 3, 5],
+        }
+    )
+    graph = build_graph(df)
+    num_walks = 2
+    walk_length = 5
+    walks = generate_random_walks(graph, num_walks=num_walks, walk_length=walk_length)
+
+    assert isinstance(walks, list)
+    assert all(isinstance(walk, list) for walk in walks)
+    assert all(isinstance(node, str) for walk in walks for node in walk)
+
+    # Number of walks should be (number of nodes * num_walks_per_node)
+    assert len(walks) == graph.number_of_nodes() * num_walks
+
+    # Each walk should have the specified length or less if it gets stuck (no neighbors)
+    for walk in walks:
+        assert 1 <= len(walk) <= walk_length
+
+
+def test_generate_random_walks_empty_graph():
+    """
+    Test random walk generation on an empty graph.
+    """
+    graph = nx.Graph()
+    walks = generate_random_walks(graph)
+    assert walks == []
+
+
+def test_generate_random_walks_isolated_node():
+    """
+    Test random walk generation with an isolated node.
+    """
+    graph = nx.Graph()
+    graph.add_node("u_1")
+    walks = generate_random_walks(graph, num_walks=1, walk_length=5)
+    # An isolated node should result in walks of length 1 (just the node itself)
+    assert len(walks) == 1
+    assert walks[0] == ["u_1"]
+
+
+# Corrected patch target for Word2Vec in train_deepwalk
+@patch("src.deepwalk_recommender.deepwalk_model.Word2Vec")
+def test_train_deepwalk_basic(mock_word2vec_class):  # Renamed mock_word2vec to mock_word2vec_class for clarity
+    """
+    Test basic training of the DeepWalk (Word2Vec) model.
+    """
+    # Mock a list of walks
+    walks_data = [
+        ["u_1", "m_101", "u_2"],
+        ["m_101", "u_1", "m_102"],
+        ["u_2", "m_101"],
+    ]
+    embedding_size = 64
+    window_size = 3
+    min_count = 1
+    workers = 2
+    epochs = 3
+
+    # Configure the mock Word2Vec constructor to return a mock model instance
+    mock_model_instance = MagicMock()
+    mock_model_instance.vector_size = embedding_size
+    mock_model_instance.wv = MagicMock()  # Mock the word vectors
+    mock_model_instance.wv.__len__.return_value = 3  # Example vocab size
+    mock_word2vec_class.return_value = mock_model_instance  # Use mock_word2vec_class
+
+    model = train_deepwalk(
+        walks=walks_data,
+        embedding_size=embedding_size,
+        window_size=window_size,
+        min_count=min_count,
+        workers=workers,
+        epochs=epochs,
+    )
+
+    # Assert that Word2Vec was called with the correct parameters
+    mock_word2vec_class.assert_called_once_with(  # Use mock_word2vec_class
+        sentences=walks_data,
+        vector_size=embedding_size,
+        window=window_size,
+        min_count=min_count,
+        workers=workers,
+        epochs=epochs,
+        sg=1,
+    )
+    assert model == mock_model_instance
+    assert model.vector_size == embedding_size
+    assert len(model.wv) == 3
+
+
+# Corrected patch target for Word2Vec in train_deepwalk
+@patch("src.deepwalk_recommender.deepwalk_model.Word2Vec")
+def test_train_deepwalk_empty_walks(mock_word2vec_class):  # Renamed mock_word2vec to mock_word2vec_class for clarity
+    """
+    Test training DeepWalk with an empty list of walks.
+    This should raise a RuntimeError.
+    """
+    walks_data = []
+    embedding_size = 128
+
+    # Configure the mock Word2Vec constructor to raise RuntimeError immediately upon call
+    mock_word2vec_class.side_effect = RuntimeError("you must first build vocabulary before training the model")
+
+    with pytest.raises(RuntimeError, match="you must first build vocabulary before training the model"):
+        train_deepwalk(walks=walks_data, embedding_size=embedding_size)
+
+    # Assert that Word2Vec was indeed attempted to be called
+    mock_word2vec_class.assert_called_once()
