@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 02:53:50
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 03:40:54
+LastEditTime: 2025-06-24 04:29:03
 FilePath: src/deepwalk_recommender/error_logger.py
 Description: Structured logging utility for recommendation engine
 """
@@ -245,11 +245,10 @@ class Logger:
         )
         self._write_log(LogLevel.ERROR, formatted)
 
-
     def exception(
-            self,
-            message: str,
-            additional_info: Optional[Dict[str, Any]] = None,
+        self,
+        message: str,
+        additional_info: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Log an error message with exception traceback (mimics standard logging.exception).
@@ -258,15 +257,17 @@ class Logger:
             message: Description of the error
             additional_info: Context about the error state
         """
-        exc_type, exc_value, exc_tb = sys.exc_info()
+        _, exc_value, _ = sys.exc_info()
         if exc_value is not None:
             self.error(
                 exc_value,
-                additional_info=additional_info if additional_info else {"message": message},
+                additional_info=(
+                    additional_info if additional_info else {"message": message}
+                ),
                 exc_info=True,
             )
         else:
-            # If called outside of an exception context, just log as error
+            # If called outside an exception context, just log as an error
             self.error(
                 Exception(message),
                 additional_info=additional_info,
@@ -280,8 +281,8 @@ class Logger:
         Log debugging information (writes to INFO log with DEBUG prefix).
 
         Args:
-            message: Debug information
-            additional_info: Context about debug state
+            `message`: Debug information
+            `additional_info`: Context about debug state
         """
         self.info(f"[DEBUG] {message}", additional_info=additional_info)
 
