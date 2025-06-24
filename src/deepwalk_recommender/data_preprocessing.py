@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 01:43:44
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 02:23:44
+LastEditTime: 2025-06-24 04:26:00
 FilePath: src/deepwalk_recommender/data_preprocessing.py
 Description: Data preprocessing for MovieLens 100k dataset
 """
@@ -25,13 +25,13 @@ def preprocess_data(_ml_100k_dir: str | Path) -> pd.DataFrame:
     - Ensuring proper data typing for efficient storage
 
     Args:
-        _ml_100k_dir (str | Path): Path to the MovieLens 100k directory containing 'u.data'
+       ` _ml_100k_dir (str | Path)`: Path to the MovieLens 100k directory containing 'u.data'
 
     Returns:
-        pd.DataFrame: Processed data with columns:
-            user_id: Integer user identifier
-            movie_id: Integer movie identifier
-            rating: Numeric rating (1-5 scale)
+        `pd.DataFrame`: Processed data with columns:
+            `user_id`: Integer user identifier
+            `movie_id`: Integer movie identifier
+            `rating`: Numeric rating (1-5 scale)
 
     Example output:
         user_id | movie_id | rating
@@ -72,7 +72,7 @@ def preprocess_data(_ml_100k_dir: str | Path) -> pd.DataFrame:
         # If reading with timestamp fails due to ParserError, re-raise it
         raise
     except ValueError:
-        # If reading with timestamp fails due to ValueError (e.g., too few columns),
+        # If reading with the timestamp fails due to ValueError (e.g., too few columns),
         # try reading without the timestamp column.
         try:
             df = pd.read_csv(
