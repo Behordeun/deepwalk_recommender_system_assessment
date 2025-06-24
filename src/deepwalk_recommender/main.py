@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 21:32:06
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 02:59:46
+LastEditTime: 2025-06-24 04:29:42
 FilePath: src/deepwalk_recommender/main.py
 Description: This script sets up a FastAPI application for movie recommendations using a DeepWalk-based recommendation system.
 """
@@ -32,7 +32,7 @@ INTERNAL_SERVER_ERROR = "Internal server error"
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """
     Async context manager for application lifecycle management.
 
@@ -42,13 +42,13 @@ async def lifespan(app: FastAPI):
     - Error handling during initialization
 
     Args:
-        app (FastAPI): The FastAPI application instance
+        `app (FastAPI)`: The FastAPI application instance
 
     Yields:
-        None: Application runs during this phase
+        `None`: Application runs during this phase
 
     Raises:
-        RuntimeError: If recommendation system initialization fails
+        `RuntimeError`: If recommendation system initialization fails
     """
     global rec_system
 
@@ -95,7 +95,7 @@ async def health_check():
     Health check endpoint for service monitoring.
 
     Returns:
-        dict: Service status with API name and version.
+        `dict`: Service status with API name and version.
         This response is specifically structured to pass the `test_read_root` test case.
     """
     # Modified to return "message" instead of "service" and remove "status"
@@ -118,16 +118,16 @@ async def add_interaction(interaction: InteractionRequest):
 
     Args:
         interaction (InteractionRequest):
-            user_id: Unique user identifier (integer)
-            movie_id: Unique movie identifier (integer)
-            rating: Rating score between 1.0-5.0 (float)
+            `user_id`: Unique user identifier (integer)
+            `movie_id`: Unique movie identifier (integer)
+            `rating`: Rating score between 1.0-5.0 (float)
 
     Returns:
-        dict: Success message
+        `dict`: Success message
 
     Raises:
-        HTTPException 400: Invalid input parameters
-        HTTPException 500: Internal server error
+        `HTTPException 400`: Invalid input parameters
+        `HTTPException 500`: Internal server error
     """
     try:
         # Validate user input
@@ -195,17 +195,17 @@ async def get_recommendations(user_id: int):
     - Movie popularity
 
     Args:
-        user_id (int): Unique user identifier
+        `user_id (int)`: Unique user identifier
 
     Returns:
         RecommendationResponse:
-            user_id: Requested user ID
-            user_info: User metadata (age, gender, occupation)
-            recommended_items: List of recommended movies with details
+            `user_id`: Requested user ID
+            `user_info`: User metadata (age, gender, occupation)
+            `recommended_items`: List of recommended movies with details
 
     Raises:
-        HTTPException 404: User not found
-        HTTPException 500: Internal server error
+        `HTTPException 404`: User not found
+        `HTTPException 500`: Internal server error
     """
     try:
         # Get user information
@@ -253,15 +253,15 @@ async def get_all_items():
     Retrieve all movies in the recommendation catalog.
 
     Returns a list of movies with:
-    - movie_id: Unique identifier
-    - title: Movie title
-    - release_date: Release date (if available)
+    - `movie_id`: Unique identifier
+    - `title`: Movie title
+    - `release_date`: Release date (if available)
 
     Returns:
-        dict: JSON response with the movie list and count
+        `dict`: JSON response with the movie list and count
 
     Raises:
-        HTTPException 500: Internal server error
+        `HTTPException 500`: Internal server error
     """
     try:
         movies = rec_system.get_all_movies()
