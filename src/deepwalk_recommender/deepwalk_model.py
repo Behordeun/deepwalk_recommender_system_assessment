@@ -2,143 +2,215 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 21:30:48
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-23 23:05:04
+LastEditTime: 2025-06-24 02:26:20
 FilePath: src/deepwalk_recommender/deepwalk_model.py
 Description: This script builds a graph from user-movie interactions, generates random walks, and trains a DeepWalk model for movie recommendations.
 """
 
 import random
+from pathlib import Path
 
 import networkx as nx
 import pandas as pd
 from gensim.models import Word2Vec
 
 from src.deepwalk_recommender.config import PathConfig
+from src.deepwalk_recommender.error_logger import system_logger
 
 
 class DeepWalk:
     """
-    DeepWalk class for loading a pre-trained Word2Vec model and retrieving node embeddings.
+    Interface for working with pre-trained DeepWalk embeddings.
+
+    Provides methods to load a trained Word2Vec model and retrieve node embeddings.
+
+    Attributes:
+        model (Word2Vec): Pre-trained Word2Vec model containing node embeddings
 
     Args:
-        model_path (str): Path to the saved Word2Vec model.
-
-    Methods:
-        get_embedding(node_id): Returns the embedding vector for the specified node ID as a list, or None if the node is not present in the model.
+        model_path (str | Path): Path to the saved Word2Vec model
     """
 
-    def __init__(self, model_path: str):
+    def __init__(self, model_path: str | Path):
         """
-        Initializes the DeepWalk instance by loading a pre-trained Word2Vec model from the specified file path.
+        Loads pre-trained DeepWalk embeddings from the specified file.
 
         Args:
-            model_path (str): Path to the saved Word2Vec model file.
+            model_path (str | Path): Path to the saved Word2Vec model file
         """
-        self.model = Word2Vec.load(model_path)
+        self.model = Word2Vec.load(str(model_path))
 
-    def get_embedding(self, node_id: str):
+    def get_embedding(self, node_id: str | int):
         """
-        Retrieve the embedding vector for the specified node ID.
+        Retrieves embedding vector for the specified node.
 
         Args:
-            node_id (str): The ID of the node to retrieve the embedding for.
+            node_id (str | int): Node identifier (user or movie)
+                Format: "u_{user_id}" for users, "m_{movie_id}" for movies
 
         Returns:
-            list or None: The embedding vector as a list if the node exists in the model, otherwise None.
+            list or None: Embedding vector as a list if the node exists, else None
         """
-        if str(node_id) in self.model.wv:
-            return self.model.wv[str(node_id)].tolist()
+        node_str = str(node_id)
+        if node_str in self.model.wv:
+            return self.model.wv[node_str].tolist()
         return None
 
 
-def build_graph(df):
+def build_graph(df: pd.DataFrame) -> nx.Graph:
     """
-    Constructs a bipartite graph from a DataFrame of user-movie interactions.
+    Constructs bipartite graph from user-movie interaction data.
 
-    Each user and movie is represented as a node, with edges connecting users to movies they have interacted with.
+    Creates an undirected graph where:
+    - User nodes: "u_{user_id}"
+    - Movie nodes: "m_{movie_id}"
+    - Edges: Connect users to movies they've rated
 
     Args:
-        df (pd.DataFrame): DataFrame containing 'user_id' and 'movie_id' columns.
+        df (pd.DataFrame): Interaction data with columns:
+            user_id: Integer user identifiers
+            movie_id: Integer movie identifiers
 
     Returns:
-        nx.Graph: An undirected graph with user and movie nodes connected by edges.
+        nx.Graph: Bipartite graph of user-movie interactions
+
+    Example:
+        Input DataFrame:
+            user_id | movie_id | rating
+            --------|----------|-------
+            1 | 101 | 5
+            1 | 202 | 4
+
+        Graph will contain:
+            Nodes: ['u_1', 'm_101', 'm_202']
+            Edges: [('u_1', 'm_101'), ('u_1', 'm_202')]
     """
     graph = nx.Graph()
+
+    # Add nodes and edges
     for _, row in df.iterrows():
-        user = f"u_{row['user_id']}"
-        movie = f"m_{row['movie_id']}"
-        graph.add_edge(user, movie)
+        user_node = f"u_{row['user_id']}"
+        movie_node = f"m_{row['movie_id']}"
+        graph.add_node(user_node, bipartite=0)
+        graph.add_node(movie_node, bipartite=1)
+        graph.add_edge(user_node, movie_node)
+
     return graph
 
 
-def generate_random_walks(graph, num_walks=10, walk_length=80):
+def generate_random_walks(
+    graph: nx.Graph, num_walks: int = 10, walk_length: int = 80
+) -> list[list[str]]:
     """
-    Generates random walks from each node in the given graph.
+    Generates random walks for DeepWalk training.
+
+    For each node in the graph, starts 'num_walks' random walks of length 'walk_length'.
+    Each walk is a sequence of node IDs representing a path through the graph.
 
     Args:
-        graph (networkx.Graph): The input graph.
-        num_walks (int, optional): Number of walks to start from each node. Defaults to 10.
-        walk_length (int, optional): Length of each walk. Defaults to 80.
+        graph (nx.Graph): Input graph from build_graph()
+        num_walks (int): Number of walks per node (default: 10)
+        walk_length (int): Length of each walk in nodes (default: 80)
 
     Returns:
-        list: A list of walks, where each walk is a list of node IDs as strings.
+        list[list[str]]: List of walks, each walk is a list of node IDs
+
+    Process:
+        1. Collect all nodes from the graph
+        2. Shuffle nodes
+        3. For each node:
+            - Start 'num_walks' walks
+            - At each step, randomly select a neighbor
+            - Continue until walk length reached
     """
     walks = []
-    nodes = list(graph.nodes())
+    nodes = list(graph.nodes)
+
     for _ in range(num_walks):
         random.shuffle(nodes)
         for node in nodes:
             walk = [str(node)]
+            current_node = node
             for _ in range(walk_length - 1):
-                neighbors = list(graph.neighbors(node))
-                if len(neighbors) > 0:
-                    node = random.choice(neighbors)
-                    walk.append(str(node))
+                neighbors = list(graph.neighbors(current_node))
+                if neighbors:
+                    current_node = random.choice(neighbors)
+                    walk.append(str(current_node))
                 else:
                     break
             walks.append(walk)
+
     return walks
 
 
-def train_deepwalk(walks, embedding_size=128, window_size=5, min_count=1, workers=4):
+def train_deepwalk(
+    walks: list[list[str]],
+    embedding_size: int = 128,
+    window_size: int = 5,
+    min_count: int = 1,
+    workers: int = 4,
+    epochs: int = 5,
+) -> Word2Vec:
     """
-    Trains a Word2Vec model on the provided DeepWalk walks.
+    Trains Word2Vec model on generated random walks.
+
+    Applies the Skip-gram algorithm to learn node embeddings from walk sequences.
 
     Args:
-        walks (list of list of str): Sequences of node identifiers generated from random walks.
-        embedding_size (int, optional): Dimensionality of the embedding vectors. Defaults to 128.
-        window_size (int, optional): Maximum distance between the current and predicted word within a sentence. Defaults to 5.
-        min_count (int, optional): Ignores all words with total frequency lower than this. Defaults to 1.
-        workers (int, optional): Number of worker threads to train the model. Defaults to 4.
+        walks (list[list[str]]): Random walks from generate_random_walks()
+        embedding_size (int): Dimension of embedding vectors (default: 128)
+        window_size (int): Context window size for the Skip gram (default: 5)
+        min_count (int): Ignore nodes with frequency < min_count (default: 1)
+        workers (int): Parallel worker threads (default: 4)
+        epochs (int): Training iterations (default: 5)
 
     Returns:
-        gensim.models.Word2Vec: Trained Word2Vec model.
+        Word2Vec: Trained model containing node embeddings
     """
     model = Word2Vec(
-        walks,
+        sentences=walks,
         vector_size=embedding_size,
         window=window_size,
         min_count=min_count,
         workers=workers,
+        epochs=epochs,
+        sg=1,  # Use Skip-gram (1) instead of CBOW (0)
     )
     return model
 
 
 if __name__ == "__main__":
-    # Load processed data
-    df = pd.read_csv(PathConfig.PROCESSED_DATA_FILE)
+    """DeepWalk training pipeline execution"""
+    try:
+        # Load processed interaction data
+        df = pd.read_csv(PathConfig.PROCESSED_DATA_FILE)
+        system_logger.info(
+            f"Loaded {len(df):,} interactions between "
+            f"{df['user_id'].nunique():,} users and "
+            f"{df['movie_id'].nunique():,} movies"
+        )
 
-    # Build graph
-    graph = build_graph(df)
-    print(
-        f"Graph built with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges."
-    )
+        # Build interaction graph
+        graph = build_graph(df)
+        system_logger.info(
+            f"Graph built with {graph.number_of_nodes():,} nodes "
+            f"and {graph.number_of_edges():,} edges"
+        )
 
-    # Generate random walks
-    walks = generate_random_walks(graph)
-    print(f"Generated {len(walks)} random walks.")
+        # Generate random walks
+        walks = generate_random_walks(graph)
+        system_logger.info(f"Generated {len(walks):,} random walks")
 
-    # Train DeepWalk model
-    model = train_deepwalk(walks)
-    model.save(PathConfig.DEEPWALK_MODEL_PATH)
-    print("DeepWalk model trained and saved as %", PathConfig.DEEPWALK_BEST_MODEL_NAME)
+        # Train DeepWalk model
+        model = train_deepwalk(walks)
+        model.save(str(PathConfig.DEEPWALK_MODEL_PATH))
+        system_logger.info(
+            f"DeepWalk model trained and saved: {PathConfig.DEEPWALK_MODEL_PATH}\n"
+            f"Embedding size: {model.vector_size}, Vocabulary size: {len(model.wv)}"
+        )
+
+    except Exception as e:
+        system_logger.error(
+            str(e), additional_info={"context": "DeepWalk training pipeline failed"}
+        )
+        raise
