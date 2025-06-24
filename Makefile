@@ -146,7 +146,7 @@ test:
 	".venv/bin/python" -m pytest --tb=short -q \
 		--cov=src \
 		--cov-report=term-missing \
-		--cov-report=html:html
+		--cov-report=html:coverage
 
 # ----------------------------------------------------------------------------
 # 🚀 Development
