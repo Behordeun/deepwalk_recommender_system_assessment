@@ -2,17 +2,8 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 02:53:50
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-23 23:10:28
-FilePath: src/deepwalk_recommender/errorlogger.py
-Description: 这是默认设置,可以在设置》工具》File Description中进行配置
-"""
-
-"""
-Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-Date: 2025-06-22 02:53:50
-LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-23 23:10:28
-FilePath: src/deepwalk_recommender/errorlogger.py
+LastEditTime: 2025-06-24 03:40:54
+FilePath: src/deepwalk_recommender/error_logger.py
 Description: Structured logging utility for recommendation engine
 """
 
@@ -28,6 +19,17 @@ from src.deepwalk_recommender.config import PathConfig
 
 
 class LogLevel(Enum):
+    """
+    Defines logging severity levels with associated log files.
+
+    Levels:
+        INFO: For informational messages about system operation
+        WARNING: For potentially problematic situations
+        ERROR: For serious failures that prevent normal operation
+
+    Each level is mapped to a dedicated log file path.
+    """
+
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
@@ -35,17 +37,25 @@ class LogLevel(Enum):
 
 class Logger:
     """
-    Structured logger for the DeepWalk recommender system, supporting info, warning, error, and debug messages.
-    Logs are formatted with timestamps, function context, and optional error tracebacks, and written to organization-specific log files.
-    Provides methods to clear logs and prevent duplicate log entries.
+    Structured logging utility for the recommendation system.
+
+    Features:
+    - Writes to level-specific log files (info.log, warning.log, error.log)
+    - Prevents duplicate log entries
+    - Captures function call context
+    - Formats errors with optional tracebacks
+    - Includes custom contextual information
+    - Provides log clearing functionality
+
+    Args:
+        log_dir (str | Path): Directory to store log files (default: PathConfig.LOG_DIR)
     """
 
-    def __init__(self, log_dir: str = PathConfig.LOG_DIR):
+    def __init__(self, log_dir: str | Path = PathConfig.LOG_DIR):
         """
-        Initializes the Logger instance by setting up log directory paths, log file mappings for each log level, ensuring the log directory exists, and initializing the log cache to prevent duplicate entries.
+        Initialize logger with log directory and file mappings.
 
-        Args:
-            log_dir (str): Path to the directory where log files will be stored. Defaults to PathConfig.LOG_DIR.
+        Creates the log directory if it doesn't exist and initializes duplicate prevention cache.
         """
         self.log_dir = Path(log_dir)
         self.log_files = {
@@ -58,19 +68,26 @@ class Logger:
 
     def _ensure_log_directory(self) -> None:
         """
-        Ensure that the log directory exists by creating it and any necessary parent directories if they do not already exist.
+        Ensure the log directory exists by creating it if necessary.
+
+        Handles:
+        - Creating nested directories
+        - Ignoring existing directories
         """
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def _get_caller_info() -> tuple[str, str]:
         """
-        Retrieve the names of the current and parent calling functions from the call stack.
+        Identify the current function and its direct caller in the call stack.
+
+        Walks the call stack to find the first frame outside this logger module.
 
         Returns:
-            tuple[str, str]: A tuple containing the current function name and its parent function name.
+            tuple: (current_function_name, parent_function_name)
         """
         stack = inspect.stack()
+        # Find the first frame not from this logger module
         caller_frame = next(
             (frame for frame in stack if frame.filename != __file__),
             stack[2] if len(stack) > 2 else None,
@@ -88,22 +105,23 @@ class Logger:
         exc_info: bool = False,
     ) -> str:
         """
-        Format a structured log message with timestamp, log level, function context, message, optional error details, traceback, and additional context.
+        Format a structured log message with contextual information.
 
         Args:
-            level (LogLevel): The severity level of the log.
-            message (str): The main log message.
-            error (Optional[Exception], optional): Exception instance to include error details. Defaults to None.
-            additional_info (Optional[Dict[str, Any]], optional): Extra context to include in the log. Defaults to None.
-            exc_info (bool, optional): Whether to include the full traceback if an error is provided. Defaults to False.
+            level: Log severity level
+            message: Primary log message
+            error: Exception object (for ERROR logs)
+            additional_info: Custom key-value context
+            exc_info: Include full exception traceback
 
         Returns:
-            str: The formatted log message as a string.
+            Formatted log string with structured sections
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         current_function, parent_function = self._get_caller_info()
 
-        lines = [
+        # Build log sections
+        sections = [
             "=" * 80,
             f"TIMESTAMP: {timestamp}",
             f"LEVEL: {level.value}",
@@ -113,32 +131,37 @@ class Logger:
             f"MESSAGE: {message}",
         ]
 
+        # Add error details if provided
         if error:
-            lines.extend(
+            sections.extend(
                 [
                     f"ERROR TYPE: {type(error).__name__}",
                     f"ERROR MESSAGE: {str(error)}",
                     "-" * 80,
                 ]
             )
+
+            # Add traceback if requested
             if exc_info:
                 try:
                     tb = getattr(error, "__traceback__", None)
-                    if tb:
-                        trace_lines = traceback.format_exception(type(error), error, tb)
-                    else:
-                        trace_lines = traceback.format_exc().splitlines()
-                    lines.append("FULL TRACEBACK:")
-                    lines.extend(trace_lines)
-                    lines.append("-" * 80)
+                    trace_lines = (
+                        traceback.format_exception(type(error), error, tb)
+                        if tb
+                        else traceback.format_exc().splitlines()
+                    )
+                    sections.append("FULL TRACEBACK:")
+                    sections.extend(trace_lines)
+                    sections.append("-" * 80)
                 except Exception as format_err:
-                    lines.append(f"Failed to format traceback: {format_err}")
+                    sections.append(f"Failed to format traceback: {format_err}")
 
+        # Add context information
         context = {"ai_engineer": "Muhammad"}
         if additional_info:
             context.update(additional_info)
 
-        lines.extend(
+        sections.extend(
             [
                 "CONTEXT:",
                 "\n".join(f"{k}: {v}" for k, v in context.items()),
@@ -146,15 +169,18 @@ class Logger:
             ]
         )
 
-        return "\n".join(lines)
+        return "\n".join(sections)
 
     def _write_log(self, level: LogLevel, message: str) -> None:
         """
-        Write a formatted log message to the appropriate log file for the given log level, ensuring the log directory exists and preventing duplicate log entries. Handles file I/O errors gracefully.
+        Write the formatted message to the appropriate log file.
+
+        Prevents duplicate log entries using message hash caching.
+        Handles file I/O errors gracefully.
         """
         log_hash = hash(message)
         if log_hash in self._log_cache:
-            return  # prevent duplicate writes
+            return  # Skip duplicate logs
 
         try:
             self._ensure_log_directory()
@@ -168,11 +194,11 @@ class Logger:
         self, message: str, additional_info: Optional[Dict[str, Any]] = None
     ) -> None:
         """
-        Log an informational message to the info log file with optional additional context.
+        Log informational message about system operation.
 
         Args:
-            message (str): The message to log.
-            additional_info (Optional[Dict[str, Any]]): Extra context to include in the log entry.
+            message: Description of system event
+            additional_info: Key-value context about the event
         """
         formatted = self._format_message(
             LogLevel.INFO, message, additional_info=additional_info
@@ -183,11 +209,11 @@ class Logger:
         self, message: str, additional_info: Optional[Dict[str, Any]] = None
     ) -> None:
         """
-        Log a warning message to the warning log file with optional additional context.
+        Log potential problem that doesn't prevent system operation.
 
         Args:
-            message (str): The warning message to log.
-            additional_info (Optional[Dict[str, Any]]): Extra context to include in the log entry.
+            message: Description of warning condition
+            additional_info: Context about the warning
         """
         formatted = self._format_message(
             LogLevel.WARNING, message, additional_info=additional_info
@@ -201,40 +227,70 @@ class Logger:
         exc_info: bool = True,
     ) -> None:
         """
-        Log an error message with structured formatting, including exception details, optional traceback, and additional context, to the error log file.
+        Log serious failure that prevents normal operation.
 
         Args:
-            error (Exception): The exception instance to log.
-            additional_info (Optional[Dict[str, Any]]): Extra context to include in the log entry.
-            exc_info (bool): Whether to include the full traceback. Defaults to True.
+            error: Exception that caused the failure
+            additional_info: Context about the error state
+            exc_info: Include full exception traceback (default: True)
         """
+        # Convert exception to a string message
+        message = f"{type(error).__name__}: {str(error)}"
         formatted = self._format_message(
             LogLevel.ERROR,
-            "An error occurred",
+            message,
             error=error,
             additional_info=additional_info,
             exc_info=exc_info,
         )
         self._write_log(LogLevel.ERROR, formatted)
 
+
+    def exception(
+            self,
+            message: str,
+            additional_info: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Log an error message with exception traceback (mimics standard logging.exception).
+
+        Args:
+            message: Description of the error
+            additional_info: Context about the error state
+        """
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        if exc_value is not None:
+            self.error(
+                exc_value,
+                additional_info=additional_info if additional_info else {"message": message},
+                exc_info=True,
+            )
+        else:
+            # If called outside of an exception context, just log as error
+            self.error(
+                Exception(message),
+                additional_info=additional_info,
+                exc_info=False,
+            )
+
     def debug(
         self, message: str, additional_info: Optional[Dict[str, Any]] = None
     ) -> None:
         """
-        Log a debug-level message by prefixing it with '[DEBUG]' and writing it as an info log entry, with optional additional context.
+        Log debugging information (writes to INFO log with DEBUG prefix).
 
         Args:
-            message (str): The debug message to log.
-            additional_info (Optional[Dict[str, Any]]): Extra context to include in the log entry.
+            message: Debug information
+            additional_info: Context about debug state
         """
         self.info(f"[DEBUG] {message}", additional_info=additional_info)
 
     def clear_logs(self, level: Optional[LogLevel] = None) -> None:
         """
-        Clear the contents of log files for the specified log level or all levels, and reset the log cache.
+        Clear log files while preserving the directory structure.
 
         Args:
-            level (Optional[LogLevel]): The log level to clear. If None, clears all log files.
+            level: Specific log level to clear (None clears all)
         """
         try:
             targets = [self.log_files[level]] if level else self.log_files.values()
@@ -246,18 +302,22 @@ class Logger:
             print(f"Failed to clear logs: {e}", file=sys.stderr)
 
 
-# Main logger instance
+# Global logger instance for system-wide access
 system_logger = Logger()
 
 
-# Helper to log structured errors from anywhere
-def log_error(message: str, **kwargs):
+def log_error(message: str, **kwargs) -> None:
     """
-    Log a structured error message without raising an exception.
+    Log the structured error message without exception handling.
+
+    Useful for non-exception error conditions where you want:
+    - Structured formatting
+    - Context capture
+    - But no exception traceback
 
     Args:
-        message (str): The error message to log.
-        **kwargs: Additional context to include in the log entry.
+        message: Error description
+        **kwargs: Context variables as keyword arguments
     """
     formatted = system_logger._format_message(
         level=LogLevel.ERROR, message=message, additional_info=kwargs, exc_info=False
