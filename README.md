@@ -6,45 +6,31 @@ A FastAPI-powered movie recommendation system that leverages DeepWalk graph embe
 
 ## Features
 
--	Graph-based Recommendations using DeepWalk for learning embeddings from user-movie interactions.
--	FastAPI REST Endpoints for interactions, recommendations, and listing movies.
--	Hyperparameter Tuning for optimizing DeepWalk training.
--	Structured Logging for traceability and debugging.
--	Comprehensive Testing using Pytest.
+- Graph-based Recommendations using DeepWalk for learning embeddings from user-movie interactions.
+- FastAPI REST Endpoints for interactions, recommendations, and listing movies.
+- Hyperparameter Tuning for optimizing DeepWalk training.
+- Structured Logging for traceability and debugging.
+- Comprehensive Testing using Pytest.
 
 ---
 
 ## System Architecture
 
-![Architecture Diagram](DeepWalk_Movie_Recommendation_Architecture.png)
+![System Architecture Diagram](DeepWalk_Movie_Recommendation_Architecture.png)
 
 ### Layer Overview
 
-#### Data Layer
-
-Handles user profiles, movie metadata, and interaction logs. These inputs form the basis for graph construction and embedding training.
-
-#### Logic Layer
-
-Processes user input and applies similarity calculations to produce ranked movie recommendations.
-
-#### Model Layer
-
-Encapsulates the DeepWalk model training, tuning, and embedding generation using the interaction graph.
-
-#### API Layer
-
-Exposes endpoints for external interaction. Bridges frontend consumers with backend logic and models.
-
-#### Logging Layer
-
-Captures system events and errors to aid monitoring and debugging.
+- **Data Layer**: Handles user profiles, movie metadata, and interaction logs. These inputs form the basis for graph construction and embedding training.
+- **Logic Layer**: Processes user input and applies similarity calculations to produce ranked movie recommendations.
+- **Model Layer**: Encapsulates the DeepWalk model training, tuning, and embedding generation using the interaction graph.
+- **API Layer**: Exposes endpoints for external interaction. Bridges frontend consumers with backend logic and models.
+- **Logging Layer**: Captures system events and errors to aid monitoring and debugging.
 
 ---
 
 ## Project Structure
 
-```
+```plaintext
 deepwalk_recommender/
 ├── ALGORITHM_WRITEUP.md
 ├── data/
@@ -84,8 +70,8 @@ deepwalk_recommender/
 
 ### Prerequisites
 
--	Python 3.11+
--	Poetry (for dependency management)
+- Python 3.11+
+- Poetry (for dependency management)
 
 ### 1. Create Virtual Environment
 
@@ -95,24 +81,28 @@ source venv/bin/activate
 ```
 
 ### 2. Install Dependencies
-
 ```bash
 pip install -r requirements.txt
 ```
-**or**
+
+or
 
 ```bash
 poetry install
 ```
 
+**Note**: for a more streamlined setup, consider using `Makefile` commands to automate these steps. Simply run `make install-fast` to install dependencies and `make dev` to start the server in development mode. For production, use `make prod`.
+
 ### 3. Download & Preprocess Data
 
-download data/ml-100k.zip
-
 ```bash
+# download the data/ml-100k.zip
 wget https://files.grouplens.org/datasets/movielens/ml-100k.zip
+# Create the data path in the project's root directory
 mkdir -p data
+# Unzip the downloaded data into the data directory
 unzip ml-100k.zip -d data/
+# run the data preprocessing script to process the data and extract the relevant field
 python src/deepwalk_recommender/data_preprocessing.py
 ```
 
@@ -131,9 +121,12 @@ python src/deepwalk_recommender/main.py
 ### Alternative Setup (via Makefile)
 
 ```bash
-make install-fast     # Install dependencies
-make dev              # Start server (dev mode)
-make prod             # Start server (production mode)
+# Install dependencies
+make install-fast
+# Start server (dev mode)
+make dev
+# Start server (production mode)
+make prod
 ```
 
 ---
@@ -191,12 +184,12 @@ Returns list of all movies.
 
 ---
 
-💡 Example Usage
+### Example Usage
 
 ```bash
 curl http://localhost:8000/                             # Check API
 curl http://localhost:8000/items                        # Get movies
-curl http://localhost:8000/recommendations/1            # Get recs
+curl http://localhost:8000/recommendations/1            # Get recommendations for the specified user_id
 curl -X POST http://localhost:8000/interactions \
      -H "Content-Type: application/json" \
      -d '{"user_id": 1, "movie_id": 100, "rating": 4.5}' # Add new user interaction
@@ -204,43 +197,49 @@ curl -X POST http://localhost:8000/interactions \
 
 ---
 
-## DeepWalk Algorithm Overview
+## Testing and Code Quality
 
-### Steps
-
-1.	Graph Construction: User-item bipartite graph from ratings.
-2.	Random Walks: Generate sequences of nodes.
-3.	Embedding Training: Use Word2Vec (Skip-gram) on sequences.
-4.	Recommendation: Use cosine similarity between user and item vectors.
-
-### Model Config
-
-- **Embedding Dimension**: 128 (configurable)
-- **Walk Length**: 80 steps
-- **Number of Walks**: 10 per node
-- **Window Size**: 5 (for Word2Vec)
-
-
-### Model Performance (on MovieLens 100k)
--	**Accuracy**: 83.89%
--	**Precision**: 82.81%
--	**Recall**: 85.72%
--	**F1-Score**: 84.24%
-
----
-
-## Testing
-
+### Testing
 Run unit and integration tests:
 
 ```bash
 pytest tests/
 ```
 
-**or**
+or
 
 ```bash
 make test
+```
+
+### Code Quality and Coverage
+
+To ensure high code quality and maintainability, `SonarQube` was utilized for static code analysis.
+
+The project adheres to best practices and common coding standards. The detailed code coverage results are available in the `coverage` directory.
+
+The results of the unit testing and code coverage are presented below:
+
+```plaintext
+============================================================================================= tests coverage ==============================================================================================
+____________________________________________________________________________ coverage: platform darwin, python 3.12.11-final-0 ____________________________________________________________________________
+
+Name                                                Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------------
+src/__init__.py                                         0      0   100%
+src/deepwalk_recommender/__init__.py                    0      0   100%
+src/deepwalk_recommender/config.py                     15      0   100%
+src/deepwalk_recommender/data_preprocessing.py         24      9    62%   74-87, 93-99
+src/deepwalk_recommender/deepwalk_model.py             58     39    33%   88-98, 126-143, 170-179, 183-216
+src/deepwalk_recommender/error_logger.py               88     17    81%   156-157, 190-191, 260-271, 287, 296-303
+src/deepwalk_recommender/evaluate_and_tune.py         139      6    96%   82, 375-379
+src/deepwalk_recommender/main.py                       72     12    83%   56-78, 281-283
+src/deepwalk_recommender/recommendation_system.py     105      3    97%   238, 240, 242
+src/deepwalk_recommender/schemas.py                    23      0   100%
+---------------------------------------------------------------------------------
+TOTAL                                                 524     86    84%
+Coverage HTML written to dir coverage
+48 passed, 1 warning in 5.62s
 ```
 
 ---
@@ -249,31 +248,36 @@ make test
 
 ### Scalability
 
--	Handles large data via sparse matrices.
--	Stateless API: horizontally scalable.
+- Handles large data via sparse matrices.
+- Stateless API: horizontally scalable.
 
 ### Performance
 
--	Precomputed embeddings, vectorized similarity.
--	Parallelized random walk generation.
+- Precomputed embeddings, vectorized similarity.
+- Parallelized random walk generation.
 
-### Planned Enhancements
--	Real-time updates
--	Cold-start handling
--	Content-based hybrid filtering
--	A/B testing for strategies
+### Future Enhancements
+
+The following enhancements can be considered in the future for a real-life scenario:
+
+- Real-time updates
+- Cold-start handling
+- Content-based hybrid filtering
+- A/B testing for strategies
 
 ---
 
 ## Dependencies
 
--	FastAPI, Uvicorn
--	Gensim, NetworkX, NumPy, Pandas
--	Scikit-learn, Pytest
--	(Optional) TensorFlow for future extensions
+- FastAPI, Uvicorn
+- Gensim, NetworkX, NumPy, Pandas
+- Scikit-learn, Pytest
+- (Optional) TensorFlow for future extensions
 
 ---
 
 ## License
 
 This project is provided for educational and evaluation purposes as part of a technical assessment.
+
+---
