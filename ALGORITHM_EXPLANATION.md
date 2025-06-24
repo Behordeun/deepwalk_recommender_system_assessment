@@ -29,7 +29,7 @@ My approach was founded on several fundamental assumptions:
 
 ### Performance
 
-Through rigorous evaluation, the model achieved a F1-Score of 83.72%, demonstrating strong balance between recommendation precision and recall. The key metrics were:
+Through rigorous evaluation, the model achieved a F1-Score of 83.72%, demonstrating a strong balance between recommendation precision and recall. The key metrics were:
 
 - **Accuracy**: 83.24%
 - **Precision**: 81.75%
@@ -55,15 +55,15 @@ During the development of this recommendation system, I made several key technic
 1.  I chose to represent the user-movie interactions as an **unweighted bipartite graph**. This decision was made to simplify the random walk generation process while still preserving the essential user-movie relationships. While weighted edges based on rating values could have provided more granular information, I opted for an unweighted approach to maintain simplicity and computational efficiency in this initial implementation. This choice allowed for a clear and direct mapping of user-movie interactions without adding the complexity of the rating scale.
 2.  I implemented a strategy of **uniform random walks**. This approach ensured an unbiased exploration of the graph structure, allowing the model to discover patterns without imposing prior assumptions about the importance of certain nodes or edges. While alternative strategies like biased walks (e.g., Node2Vec) could have been explored for different exploration behaviors, uniform random walks provided a solid baseline for capturing the inherent structure of the user-movie interaction graph.
 3.  For learning the node embeddings, I selected the **Word2Vec Skip-gram model**. This choice was based on its proven effectiveness in learning meaningful embeddings from sequential data, which aligned perfectly with treating the random walks as "sentences" and the nodes as "words." The Skip-gram architecture, particularly, was chosen for its ability to predict context nodes given a target node, which is highly suitable for capturing the relationships within the graph. While other graph-specific embedding methods (such as GraphS AGE or Graph Convolutional Networks) exist, Word2Vec provided a robust and well-understood solution for this application.
-4.  **Recommendation Scoring** used **cosine similarity** between user and movie embeddings for recommendation scoring. This method was chosen because it effectively captures the semantic similarity in the learned embedding space. Movies with embeddings closer to a user's embedded in this multidimensional space were considered more relevant. **Confidence Metric (`prob`)**: The `prob` field in recommendations represents prediction confidence (0-100%) derived from the logistic regression classifier during evaluation. It estimates the likelihood that a user would rate the movie ≥3.5, based on the combined user-movie embedding. This provides an interpretable confidence measure alongside the cosine similarity score.
+4.  **Recommendation Scoring** used **cosine similarity** between user and movie embeddings for recommendation scoring. This method was chosen because it effectively captures the semantic similarity in the learned embedding space. Movies with embeddings closer to a user's embedded in this multidimensional space were considered more relevant. **Confidence Metric (`prob`)**: The `prob` field in recommendations represents prediction confidence (0–100%) derived from the logistic regression classifier during evaluation. It estimates the likelihood that a user would rate the movie ≥3.5, based on the combined user-movie embedding. This provides an interpretable confidence measure alongside the cosine similarity score.
 5. **Scalability Considerations**: The system was designed with scalability principles in mind, though optimized for the MovieLens 100k dataset:
 
    - **Graph construction** uses efficient sparse matrix storage (O(∣E∣) memory)  
-   - **Random walks** employ batch processing for memory efficiency  
+   - **Random walks** use batch processing for memory efficiency  
    - **Embeddings** leverage Gensim's optimized Word2Vec for larger corpora  
    - **Recommendations** use vectorized cosine similarity (O(n) per user)  
 
-**Note**: Production deployment would require distributed computing for walk generation and approximate nearest-neighbor search for very large item catalogs.
+**Note**: Production deployment would require distributed computing for walk generation and approximate nearest-neighbor search for huge item catalogs.
 
 ---
 
