@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 09:01:01
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-23 23:52:28
+LastEditTime: 2025-06-24 01:23:58
 FilePath: tests/test_recommendation_system.py
 Description: This script tests the RecommendationSystem class for movie recommendations using the MovieLens 100k dataset.
 """
@@ -66,7 +66,7 @@ def sample_processed_ratings_path(tmp_path):
 
 @pytest.fixture
 def sample_u_item_path(tmp_path):
-    """Mock movie metadata with correct format (24 columns)"""
+    """Mock movie metadata with the correct format (24 columns)"""
     # Format: movie_id|title|release_date|video_release_date|imdb_url|...genres...
     item_content = """1|Toy Story|1995||http://us.imdb.com|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0
 2|GoldenEye|1995||http://us.imdb.com|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0
@@ -131,7 +131,7 @@ def test_create_user_movie_matrix(rec_system_instance):
 
 
 def test_load_movies():
-    """Test movie metadata loading with correct column alignment"""
+    """Test movie metadata loading with the correct column alignment"""
     mock_data = StringIO(
         "1|Toy Story|1995||http://example.com|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
         "2|GoldenEye|1995||http://example.com|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0"
@@ -218,7 +218,7 @@ def test_get_recommendations(rec_system_instance):
     """Test recommendation generation with diversity"""
     # Mock rating prediction to control scores
     with patch.object(rec_system_instance, "predict_rating") as mock_predict_rating:
-        # Set high score for movie 3
+        # Set a high score for movie 3
         mock_predict_rating.side_effect = lambda u, m: 4.5 if m == 3 else 3.0
 
         recommendations = rec_system_instance.get_recommendations(1, top_k=1)
