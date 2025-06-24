@@ -1,14 +1,20 @@
 {
     "hyperparameters": {
-        "embedding_size": 128,
-        "window_size": 5,
-        "num_walks": 5,
-        "walk_length": 80
+        "embedding_size": 64,
+        "window_size": 10,
+        "num_walks": 10,
+        "walk_length": 80,
+        "epochs": 10
     },
     "metrics": {
-        "accuracy_score": 0.8391422121896163,
-        "precision_score": 0.8288695652173913,
-        "recall_score": 0.8566549833737755,
-        "f1_score": 0.842533256728687
+        "accuracy": 0.8323702031602709,
+        "precision": 0.817543258523214,
+        "recall": 0.8577334411791139,
+        "f1": 0.8371562650760932
+    },
+    "dataset_stats": {
+        "interactions": 100000,
+        "users": 943,
+        "movies": 1682
     }
 }
