@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 08:16:08
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 04:15:57
+LastEditTime: 2025-06-24 10:54:24
 FilePath: src/deepwalk_recommender/recommendation_system.py
 Description: This script implements a recommendation system using a DeepWalk-based approach.
 """
@@ -131,6 +131,8 @@ class RecommendationSystem:
         """
         column_names = ["user_id", "age", "gender", "occupation", "zip_code"]
         users_df = pd.read_csv(users_path, sep="|", names=column_names)
+        # Ensure 'zip_code' is treated as a string to match the Pydantic schema
+        users_df["zip_code"] = users_df["zip_code"].astype(str)
         return users_df
 
     def get_user_embedding(self, user_id):
@@ -352,7 +354,7 @@ class RecommendationSystem:
             user_dict = user_data.iloc[0].to_dict()
             # Remove 'user_id' from the dictionary before passing to UserInfo,
             # as UserInfo schema is expected to no longer contain 'user_id'.
-            if "user_id" in user_dict:
-                del user_dict["user_id"]
+            if 'user_id' in user_dict:
+                del user_dict['user_id']
             return UserInfo(**user_dict)
         return None

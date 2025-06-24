@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 09:01:01
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 01:23:58
+LastEditTime: 2025-06-24 10:53:31
 FilePath: tests/test_recommendation_system.py
 Description: This script tests the RecommendationSystem class for movie recommendations using the MovieLens 100k dataset.
 """
@@ -17,6 +17,7 @@ from gensim.models import Word2Vec
 
 from src.deepwalk_recommender.config import PathConfig
 from src.deepwalk_recommender.recommendation_system import RecommendationSystem
+from src.deepwalk_recommender.schemas import UserInfo # Import UserInfo
 
 
 @pytest.fixture(scope="module")
@@ -176,6 +177,9 @@ def test_load_users(rec_system_instance, sample_u_user_path):
     assert "occupation" in users_df.columns
     assert users_df.iloc[0]["occupation"] == "technician"
     assert users_df.iloc[0]["user_id"] == 1
+    # Verify zip_code is string type after loading and conversion
+    assert users_df.iloc[0]["zip_code"] == "85711"
+    assert isinstance(users_df.iloc[0]["zip_code"], str)
 
 
 def test_get_user_embedding(rec_system_instance):
@@ -254,12 +258,13 @@ def test_get_all_movies(rec_system_instance):
 
 
 def test_get_user_info(rec_system_instance):
-    """Test user metadata retrieval"""
+    """Test user metadata retrieval and Pydantic model creation"""
     user_info = rec_system_instance.get_user_info(1)
-    assert isinstance(user_info, dict)
-    assert user_info["user_id"] == 1
-    assert user_info["occupation"] == "technician"
-    assert user_info["age"] == 24
+    assert isinstance(user_info, UserInfo) # Assert it's a UserInfo object
+    # No user_id in the UserInfo object as per schema definition
+    assert user_info.occupation == "technician"
+    assert user_info.age == 24
+    assert user_info.zip_code == "85711" # Ensure zip_code is string
 
     # Test non-existent user
     assert rec_system_instance.get_user_info(999) is None
