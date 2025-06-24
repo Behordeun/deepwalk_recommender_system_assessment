@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 09:04:12
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-23 23:33:42
+LastEditTime: 2025-06-24 03:02:24
 FilePath: tests/test_main.py
 Description: 这是默认设置,可以在设置》工具》File Description中进行配置
 """
@@ -32,6 +32,7 @@ def mock_rec_system():
 def test_read_root():
     """
     Test the root endpoint to ensure it returns the correct API message and version.
+    This test now expects the 'message' key as per the updated main.py.
     """
     response = client.get("/")
     assert response.status_code == 200
@@ -45,14 +46,14 @@ def test_add_interaction_success(mock_rec_system):
     """
     Test the /interactions endpoint for successful addition of a user-movie interaction.
 
-    Verifies that the API returns a 200 status and the correct success message,
+    Verifies that the API returns a 201 status (Created) and the correct success message,
     and that the add_interaction method is called with the expected arguments.
     """
     mock_rec_system.add_interaction.return_value = True
     response = client.post(
         "/interactions", json={"user_id": 1, "movie_id": 100, "rating": 4.5}
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json() == {"message": "Interaction added successfully"}
     mock_rec_system.add_interaction.assert_called_once_with(1, 100, 4.5)
 
@@ -104,19 +105,24 @@ def test_get_recommendations_success(mock_rec_system):
 
 def test_add_interaction_exception(mock_rec_system):
     """
-    Test the /interactions endpoint to ensure a 500 error and correct error message are returned when an exception occurs during interaction addition.
+    Test the /interactions endpoint to ensure a 500-error and correct error message are returned when an exception occurs during interaction addition.
+    This test is updated to expect the exact exception message string, as per main.py's changes.
     """
-    mock_rec_system.add_interaction.side_effect = Exception("Test Exception")
+    mock_exception_message = "DB connection failed"
+    mock_rec_system.add_interaction.side_effect = Exception(mock_exception_message)
     response = client.post(
         "/interactions", json={"user_id": 1, "movie_id": 100, "rating": 4.5}
     )
     assert response.status_code == 500
-    assert response.json() == {"detail": "Test Exception"}
+    # Updated assertion to match the exact exception message passed from main.py
+    assert response.json()["detail"] == mock_exception_message
 
 
 def test_get_recommendations_user_not_found(mock_rec_system):
     """
-    Test the /recommendations/{user_id} endpoint to ensure a 404 error and correct message are returned when the user is not found.
+    Test the /recommendations/{user_id} endpoint to ensure a 404 error and
+    the generic "User not found" message are returned when the user is not found.
+    This matches the updated main.py behavior.
     """
     mock_rec_system.get_recommendations.return_value = []
     mock_rec_system.get_user_info.return_value = None
@@ -127,9 +133,12 @@ def test_get_recommendations_user_not_found(mock_rec_system):
 
 def test_get_recommendations_exception(mock_rec_system):
     """
-    Test the /recommendations/{user_id} endpoint to ensure a 500 error and correct error message are returned when an exception occurs during recommendation retrieval.
+    Test the /recommendations/{user_id} endpoint to ensure a 500-error and
+    the exact exception message are returned when an exception occurs during recommendation retrieval.
+    This matches the updated main.py behavior.
     """
-    mock_rec_system.get_recommendations.side_effect = Exception("Test Exception")
+    mock_exception_message = "Test Exception"
+    mock_rec_system.get_recommendations.side_effect = Exception(mock_exception_message)
     mock_rec_system.get_user_info.return_value = {
         "user_id": 1,
         "age": 30,
@@ -137,7 +146,7 @@ def test_get_recommendations_exception(mock_rec_system):
     }
     response = client.get("/recommendations/1")
     assert response.status_code == 500
-    assert response.json() == {"detail": "Test Exception"}
+    assert response.json() == {"detail": mock_exception_message}
 
 
 def test_get_all_items_success(mock_rec_system):
@@ -165,9 +174,12 @@ def test_get_all_items_success(mock_rec_system):
 
 def test_get_all_items_exception(mock_rec_system):
     """
-    Test the /items endpoint to ensure a 500 error and correct error message are returned when an exception occurs during movie retrieval.
+    Test the /items endpoint to ensure a 500 error and the exact exception message
+    are returned when an exception occurs during movie retrieval.
+    This matches the updated main.py behavior.
     """
-    mock_rec_system.get_all_movies.side_effect = Exception("Test Exception")
+    mock_exception_message = "Test Exception"
+    mock_rec_system.get_all_movies.side_effect = Exception(mock_exception_message)
     response = client.get("/items")
     assert response.status_code == 500
-    assert response.json() == {"detail": "Test Exception"}
+    assert response.json() == {"detail": mock_exception_message}
