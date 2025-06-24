@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 09:03:31
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 15:06:42
+LastEditTime: 2025-06-24 15:47:43
 FilePath: tests/test_deepwalk_model.py
 Description: This script contains unit tests for the deepwalk_model module.
 """
@@ -70,9 +70,8 @@ def test_read_root():
     # The previous test expected "service" and "status", but the error indicates
     # the API is returning "message" and "version".
     assert response.json() == {
-        "message": "Movie Recommendation API",  # Corrected to match actual API response
-        "version": "1.0.0",
-        # Removed "status": "operational" as it's not present in the reported API response
+        "message": "Movie Recommendation API",
+        "version": "1.0.0"
     }
 
 

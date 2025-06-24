@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 09:34:29
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 03:59:15
+LastEditTime: 2025-06-24 15:50:47
 FilePath: tests/test_evaluate_and_tune.py
 Description: This script contains unit tests for the evaluate_and_tune module.
 """
@@ -418,13 +418,10 @@ def test_main_tuning_pipeline_failure(mocker, tmp_path):
         with pytest.raises(Exception, match="Graph building failed"):
             run_tuning_pipeline()
 
-        # The exception is caught by pytest.raises.
-        # The 'Loaded 4 interactions...' info log is expected because data loading happens before the mocked exception.
         system_logger.info.assert_called_with(
             "Loaded 4 interactions between 2 users and 3 movies"
-        )  # Expected log
-
-        # This assertion now correctly checks that the "New best model found!" message was NOT logged.
+        )
+        
         assert call("New best model found!") not in system_logger.info.call_args_list
 
         system_logger.exception.assert_not_called()  # Exception caught by pytest.raises, so logger.exception isn't called by module under test.

@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 09:01:01
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 10:53:31
+LastEditTime: 2025-06-24 15:50:47
 FilePath: tests/test_recommendation_system.py
 Description: This script tests the RecommendationSystem class for movie recommendations using the MovieLens 100k dataset.
 """
@@ -261,7 +261,6 @@ def test_get_user_info(rec_system_instance):
     """Test user metadata retrieval and Pydantic model creation"""
     user_info = rec_system_instance.get_user_info(1)
     assert isinstance(user_info, UserInfo)  # Assert it's a UserInfo object
-    # No user_id in the UserInfo object as per schema definition
     assert user_info.occupation == "technician"
     assert user_info.age == 24
     assert user_info.zip_code == "85711"  # Ensure zip_code is string
