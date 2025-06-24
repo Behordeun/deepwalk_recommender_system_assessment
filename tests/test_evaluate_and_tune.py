@@ -9,7 +9,7 @@ Description: This script contains unit tests for the evaluate_and_tune module.
 
 import json
 import sys
-from unittest.mock import call # Import call from unittest.mock
+from unittest.mock import call  # Import call from unittest.mock
 
 import networkx as nx
 import numpy as np
@@ -26,8 +26,8 @@ from src.deepwalk_recommender.evaluate_and_tune import (
     evaluate_embeddings,
     generate_negative_samples,
     generate_random_walks,
-    train_deepwalk,
     run_tuning_pipeline,
+    train_deepwalk,
 )
 
 
@@ -260,9 +260,7 @@ def test_evaluate_embeddings_no_negative_samples_generated(complex_df, mocker):
     # find true negatives to compare against. Accuracy might still be non-zero if all positive
     # samples are correctly classified as positive.
     assert 0 <= accuracy <= 1
-    assert (
-        precision == 0
-    )
+    assert precision == 0
     assert recall == 0
     assert f1 == 0
 
@@ -306,16 +304,18 @@ def test_main_tuning_pipeline_success(mocker, tmp_path):
 
     # Mock Word2Vec model and its save method
     mock_model_instance = mocker.Mock(spec=Word2Vec)
-    
+
     # Create a mock for wv that behaves like a dictionary
     mock_wv = mocker.Mock()
     # Mock __contains__ and __getitem__ directly on mock_wv
     mock_wv.__contains__ = lambda key: key in {"u_1", "m_10", "u_2", "m_20"}
     rng = np.random.default_rng(42)
-    mock_wv.__getitem__ = lambda key: rng.random(2) # Return dummy embedding for any accessed key
-    
+    mock_wv.__getitem__ = lambda key: rng.random(
+        2
+    )  # Return dummy embedding for any accessed key
+
     mock_model_instance.wv = mock_wv
-    
+
     mock_train_deepwalk = mocker.patch(
         "src.deepwalk_recommender.evaluate_and_tune.train_deepwalk",
         return_value=mock_model_instance,
@@ -361,18 +361,9 @@ def test_main_tuning_pipeline_success(mocker, tmp_path):
         expected_combinations = 32
 
         mock_build_graph.assert_called_once()
-        assert (
-            mock_generate_random_walks.call_count
-            == expected_combinations
-        )
-        assert (
-            mock_train_deepwalk.call_count
-            == expected_combinations
-        )
-        assert (
-            mock_evaluate_embeddings.call_count
-            == expected_combinations
-        )
+        assert mock_generate_random_walks.call_count == expected_combinations
+        assert mock_train_deepwalk.call_count == expected_combinations
+        assert mock_evaluate_embeddings.call_count == expected_combinations
 
     finally:
         # Restore original sys.argv and sys.modules to prevent test side effects
@@ -429,12 +420,14 @@ def test_main_tuning_pipeline_failure(mocker, tmp_path):
 
         # The exception is caught by pytest.raises.
         # The 'Loaded 4 interactions...' info log is expected because data loading happens before the mocked exception.
-        system_logger.info.assert_called_with('Loaded 4 interactions between 2 users and 3 movies') # Expected log
+        system_logger.info.assert_called_with(
+            "Loaded 4 interactions between 2 users and 3 movies"
+        )  # Expected log
 
         # This assertion now correctly checks that the "New best model found!" message was NOT logged.
         assert call("New best model found!") not in system_logger.info.call_args_list
-        
-        system_logger.exception.assert_not_called() # Exception caught by pytest.raises, so logger.exception isn't called by module under test.
+
+        system_logger.exception.assert_not_called()  # Exception caught by pytest.raises, so logger.exception isn't called by module under test.
 
     finally:
         sys.argv = original_argv
