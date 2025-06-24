@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 21:28:50
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 03:47:39
+LastEditTime: 2025-06-24 04:26:00
 FilePath: src/deepwalk_recommender/evaluate_and_tune.py
 Description: This script evaluates and tunes the DeepWalk model for movie recommendations.
 """
@@ -21,7 +21,6 @@ from sklearn.model_selection import train_test_split
 
 from src.deepwalk_recommender.config import PathConfig
 from src.deepwalk_recommender.error_logger import system_logger
-from src.deepwalk_recommender.schemas import EvaluationMetrics
 
 
 def build_graph(df: pd.DataFrame) -> nx.Graph:
@@ -29,17 +28,17 @@ def build_graph(df: pd.DataFrame) -> nx.Graph:
     Constructs a bipartite graph from user-movie interactions.
 
     Creates an undirected graph where:
-    - User nodes: "u_{user_id}"
-    - Movie nodes: "m_{movie_id}"
-    - Edges: Connect users to movies they've rated
+    - `User nodes`: "u_{user_id}"
+    - `Movie nodes`: "m_{movie_id}"
+    - `Edges`: Connect users to movies they've rated
 
     Args:
-        df (pd.DataFrame): Interaction data with columns:
-            user_id: Integer user identifiers
-            movie_id: Integer movie identifiers
+        `df (pd.DataFrame)`: Interaction data with columns:
+            `user_id`: Integer user identifiers
+            `movie_id`: Integer movie identifiers
 
     Returns:
-        nx.Graph: Bipartite graph of user-movie interactions
+        `nx.Graph`: Bipartite graph of user-movie interactions
     """
     graph = nx.Graph()
     for _, row in df.iterrows():
@@ -60,12 +59,12 @@ def generate_random_walks(
     For each node in the graph, starts 'num_walks' random walks of length 'walk_length'.
 
     Args:
-        graph (nx.Graph): Input graph from build_graph()
-        num_walks (int): Number of walks per node (default: 10)
-        walk_length (int): Length of each walk in nodes (default: 80)
+        `graph (nx.Graph)`: Input graph from build_graph()
+        `num_walks (int)`: Number of walks per node (default: 10)
+        `walk_length (int)`: Length of each walk in nodes (default: 80)
 
     Returns:
-        list[list[str]]: List of walks, each walk is a list of node IDs
+        `list[list[str]]`: List of walks, each walk is a list of node IDs
     """
     walks = []
     nodes = list(graph.nodes)
@@ -97,12 +96,12 @@ def train_deepwalk(
     Trains Word2Vec model on generated random walks.
 
     Args:
-        walks (list[list[str]]): Random walks from generate_random_walks()
-        embedding_size (int): Dimension of embedding vectors (default: 128)
-        window_size (int): Context window size for Skip-gram (default: 5)
-        min_count (int): Ignore nodes with frequency < min_count (default: 1)
-        workers (int): Parallel worker threads (default: 4)
-        epochs (int): Training iterations (default: 5)
+        `walks (list[list[str]])`: Random walks from generate_random_walks()
+        `embedding_size (int)`: Dimension of embedding vectors (default: 128)
+        `window_size (int)`: Context window size for Skip-gram (default: 5)
+        `min_count (int)`: Ignore nodes with frequency < min_count (default: 1)
+        `workers (int)`: Parallel worker threads (default: 4)
+        `epochs (int)`: Training iterations (default: 5)
 
     Returns:
         Word2Vec: Trained model containing node embeddings
@@ -128,12 +127,12 @@ def generate_negative_samples(
     Creates balanced negative samples that don't exist in the original dataset.
 
     Args:
-        df (pd.DataFrame): Full interaction dataset
-        positive_interactions (pd.DataFrame): Positive interactions (rating >= 3.5)
-        seed (int): Random seed for reproducibility
+        `df (pd.DataFrame)`: Full interaction dataset
+        `positive_interactions (pd.DataFrame)`: Positive interactions (rating >= 3.5)
+        `seed (int)`: Random seed for reproducibility
 
     Returns:
-        pd.DataFrame: Negative samples with rating=0
+        `pd.DataFrame`: Negative samples with rating=0
     """
     all_users = df["user_id"].unique()
     all_movies = df["movie_id"].unique()
@@ -165,11 +164,11 @@ def evaluate_embeddings(model: Word2Vec, df: pd.DataFrame) -> tuple:
     Trains classifier on concatenated user-movie embeddings.
 
     Args:
-        model (Word2Vec): Trained DeepWalk model
-        df (pd.DataFrame): Full interaction dataset
+       ` model (Word2Vec)`: Trained DeepWalk model
+        `df (pd.DataFrame)`: Full interaction dataset
 
     Returns:
-        tuple: (accuracy, precision, recall, f1) scores
+        `tuple`: (accuracy, precision, recall, f1) scores
     """
     # Create balanced dataset
     positive_interactions = df[df["rating"] >= 3.5].copy()
@@ -236,7 +235,24 @@ def evaluate_embeddings(model: Word2Vec, df: pd.DataFrame) -> tuple:
 
 
 def run_tuning_pipeline():
-    """DeepWalk hyperparameter tuning pipeline"""
+    """
+    Executes the DeepWalk hyperparameter tuning pipeline.
+
+    This function performs an end-to-end workflow for tuning the hyperparameters
+    of a DeepWalk algorithm. It includes loading processed data, constructing an
+    interaction graph, defining a hyperparameter grid, training the model on all
+    parameter combinations, evaluating performance, and tracking the best model
+    based on evaluation metrics. The best model and its hyperparameters along
+    with the metrics, are saved to predefined file paths for later use.
+
+    Raises:
+        FileNotFoundError: If the processed data file is not found.
+        Exception: If any unexpected errors occur during model training, evaluation,
+        or file handling.
+
+    Returns:
+        None
+    """
     # Load processed interaction data
     df = pd.read_csv(PathConfig.PROCESSED_DATA_FILE)
     system_logger.info(
