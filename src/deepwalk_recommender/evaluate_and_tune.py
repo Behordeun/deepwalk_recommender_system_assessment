@@ -2,14 +2,13 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 21:28:50
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-23 23:23:29
+LastEditTime: 2025-06-24 03:47:39
 FilePath: src/deepwalk_recommender/evaluate_and_tune.py
 Description: This script evaluates and tunes the DeepWalk model for movie recommendations.
 """
 
 import itertools
 import json
-import os
 import random
 
 import networkx as nx
@@ -21,221 +20,344 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from sklearn.model_selection import train_test_split
 
 from src.deepwalk_recommender.config import PathConfig
+from src.deepwalk_recommender.error_logger import system_logger
+from src.deepwalk_recommender.schemas import EvaluationMetrics
 
 
-def build_graph(df):
+def build_graph(df: pd.DataFrame) -> nx.Graph:
     """
-    Constructs a bipartite graph from a DataFrame of user-movie interactions.
+    Constructs a bipartite graph from user-movie interactions.
 
-    Each user and movie is represented as a node, with edges connecting users to movies they have interacted with.
+    Creates an undirected graph where:
+    - User nodes: "u_{user_id}"
+    - Movie nodes: "m_{movie_id}"
+    - Edges: Connect users to movies they've rated
 
     Args:
-        df (pd.DataFrame): DataFrame containing 'user_id' and 'movie_id' columns.
+        df (pd.DataFrame): Interaction data with columns:
+            user_id: Integer user identifiers
+            movie_id: Integer movie identifiers
 
     Returns:
-        nx.Graph: An undirected graph with user and movie nodes connected by edges.
+        nx.Graph: Bipartite graph of user-movie interactions
     """
     graph = nx.Graph()
     for _, row in df.iterrows():
-        user = f"u_{row['user_id']}"
-        movie = f"m_{row['movie_id']}"
-        graph.add_edge(user, movie)
+        user_node = f"u_{row['user_id']}"
+        movie_node = f"m_{row['movie_id']}"
+        graph.add_node(user_node, bipartite=0)
+        graph.add_node(movie_node, bipartite=1)
+        graph.add_edge(user_node, movie_node)
     return graph
 
 
-def generate_random_walks(graph, num_walks=10, walk_length=80):
+def generate_random_walks(
+    graph: nx.Graph, num_walks: int = 10, walk_length: int = 80
+) -> list[list[str]]:
     """
-    Generates random walks from each node in the given graph.
+    Generates random walks for DeepWalk training.
+
+    For each node in the graph, starts 'num_walks' random walks of length 'walk_length'.
 
     Args:
-        graph (networkx.Graph): The input graph.
-        num_walks (int, optional): Number of walks to start from each node. Defaults to 10.
-        walk_length (int, optional): Length of each walk. Defaults to 80.
+        graph (nx.Graph): Input graph from build_graph()
+        num_walks (int): Number of walks per node (default: 10)
+        walk_length (int): Length of each walk in nodes (default: 80)
 
     Returns:
-        list: A list of walks, where each walk is a list of node IDs as strings.
+        list[list[str]]: List of walks, each walk is a list of node IDs
     """
     walks = []
-    nodes = list(graph.nodes())
+    nodes = list(graph.nodes)
     for _ in range(num_walks):
         random.shuffle(nodes)
         for node in nodes:
             walk = [str(node)]
+            current_node = node
             for _ in range(walk_length - 1):
-                neighbors = list(graph.neighbors(node))
-                if len(neighbors) > 0:
-                    node = random.choice(neighbors)
-                    walk.append(str(node))
+                neighbors = list(graph.neighbors(current_node))
+                if neighbors:
+                    current_node = random.choice(neighbors)
+                    walk.append(str(current_node))
                 else:
                     break
             walks.append(walk)
     return walks
 
 
-def train_deepwalk(walks, embedding_size=128, window_size=5, min_count=1, workers=4):
+def train_deepwalk(
+    walks: list[list[str]],
+    embedding_size: int = 128,
+    window_size: int = 5,
+    min_count: int = 1,
+    workers: int = 4,
+    epochs: int = 5,
+) -> Word2Vec:
     """
-    Trains a DeepWalk model using Word2Vec on the provided random walks.
+    Trains Word2Vec model on generated random walks.
 
     Args:
-        walks (list of list of str): Sequences of node IDs representing random walks.
-        embedding_size (int, optional): Dimensionality of the embedding vectors. Defaults to 128.
-        window_size (int, optional): Maximum distance between the current and predicted node. Defaults to 5.
-        min_count (int, optional): Ignores nodes with total frequency lower than this. Defaults to 1.
-        workers (int, optional): Number of worker threads to train the model. Defaults to 4.
+        walks (list[list[str]]): Random walks from generate_random_walks()
+        embedding_size (int): Dimension of embedding vectors (default: 128)
+        window_size (int): Context window size for Skip-gram (default: 5)
+        min_count (int): Ignore nodes with frequency < min_count (default: 1)
+        workers (int): Parallel worker threads (default: 4)
+        epochs (int): Training iterations (default: 5)
 
     Returns:
-        gensim.models.Word2Vec: Trained Word2Vec model containing node embeddings.
+        Word2Vec: Trained model containing node embeddings
     """
     model = Word2Vec(
-        walks,
+        sentences=walks,
         vector_size=embedding_size,
         window=window_size,
         min_count=min_count,
         workers=workers,
+        epochs=epochs,
+        sg=1,  # Use Skip-gram
     )
     return model
 
 
-# Load processed data
-df = pd.read_csv(PathConfig.PROCESSED_DATA_FILE)
+def generate_negative_samples(
+    df: pd.DataFrame, positive_interactions: pd.DataFrame, seed: int = 42
+) -> pd.DataFrame:
+    """
+    Generates negative samples for evaluation dataset.
 
-# Build graph once
-graph = build_graph(df)
-print(
-    f"Graph built with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges."
-)
+    Creates balanced negative samples that don't exist in the original dataset.
 
-# Define DeepWalk hyperparameter grid
-param_grid_deepwalk = {
-    "embedding_size": [64, 128],
-    "window_size": [5, 10],
-    "num_walks": [5, 10],
-    "walk_length": [40, 80],
-}
+    Args:
+        df (pd.DataFrame): Full interaction dataset
+        positive_interactions (pd.DataFrame): Positive interactions (rating >= 3.5)
+        seed (int): Random seed for reproducibility
 
-best_deepwalk_model = None
-best_accuracy_score = -1
-best_recall_score = -1
-best_precision_score = -1
-best_f1_score = -1
-best_params = {}
-
-# Iterate over all combinations of DeepWalk hyperparameters
-keys = param_grid_deepwalk.keys()
-for values in itertools.product(*param_grid_deepwalk.values()):
-    params = dict(zip(keys, values))
-    print(f"\nTraining DeepWalk with parameters: {params}")
-
-    # Generate random walks with current parameters
-    walks = generate_random_walks(
-        graph, num_walks=params["num_walks"], walk_length=params["walk_length"]
-    )
-    print(f"Generated {len(walks)} random walks.")
-
-    # Train the DeepWalk model with current parameters
-    current_deepwalk_model = train_deepwalk(
-        walks,
-        embedding_size=params["embedding_size"],
-        window_size=params["window_size"],
-    )
-
-    # Prepare data for evaluation (same as before)
-    positive_interactions = df[df["rating"] >= 3.5]
+    Returns:
+        pd.DataFrame: Negative samples with rating=0
+    """
     all_users = df["user_id"].unique()
     all_movies = df["movie_id"].unique()
     existing_interactions = set(tuple(x) for x in df[["user_id", "movie_id"]].values)
 
-    SEED = 42
-    rng = np.random.default_rng(
-        SEED
-    )  # Initialize a random number generator for reproducibility
-
+    rng = np.random.default_rng(seed)
     negative_samples = []
-    # Use numpy's random choice for more efficient sampling of users and movies
-    # Also, ensure 'user' and 'movie' are actual values from the arrays
-    while len(negative_samples) < len(positive_interactions):
+    sample_count = len(positive_interactions)
+
+    # Efficient negative sampling
+    attempts = 0
+    max_attempts = sample_count * 5  # Prevent infinite loops
+
+    while len(negative_samples) < sample_count and attempts < max_attempts:
         user = rng.choice(all_users)
         movie = rng.choice(all_movies)
         if (user, movie) not in existing_interactions:
             negative_samples.append({"user_id": user, "movie_id": movie, "rating": 0})
+        attempts += 1
 
+    return pd.DataFrame(negative_samples)
+
+
+def evaluate_embeddings(model: Word2Vec, df: pd.DataFrame) -> tuple:
+    """
+    Evaluates DeepWalk embeddings using logistic regression classifier.
+
+    Creates a balanced dataset with positive interactions and negative samples.
+    Trains classifier on concatenated user-movie embeddings.
+
+    Args:
+        model (Word2Vec): Trained DeepWalk model
+        df (pd.DataFrame): Full interaction dataset
+
+    Returns:
+        tuple: (accuracy, precision, recall, f1) scores
+    """
+    # Create balanced dataset
+    positive_interactions = df[df["rating"] >= 3.5].copy()
+    negative_samples = generate_negative_samples(df, positive_interactions)
+
+    # Combine positive and negative samples
     combined_df = pd.concat(
-        [positive_interactions, pd.DataFrame(negative_samples)], ignore_index=True
+        [positive_interactions, negative_samples], ignore_index=True
     )
+    combined_df["label"] = (combined_df["rating"] >= 3.5).astype(int)
 
-    X = []
-    y = []
+    # Prepare feature vectors
+    features = []
+    labels = []
+    missing_embeddings = 0
 
-    for index, row in combined_df.iterrows():
+    for _, row in combined_df.iterrows():
         user_node = f"u_{row['user_id']}"
         movie_node = f"m_{row['movie_id']}"
 
-        if (
-            user_node in current_deepwalk_model.wv
-            and movie_node in current_deepwalk_model.wv
-        ):
-            user_embedding = current_deepwalk_model.wv[user_node]
-            movie_embedding = current_deepwalk_model.wv[movie_node]
-            X.append(np.concatenate((user_embedding, movie_embedding)))
-            y.append(1 if row["rating"] >= 3.5 else 0)
+        if user_node in model.wv and movie_node in model.wv:
+            user_embedding = model.wv[user_node]
+            movie_embedding = model.wv[movie_node]
+            features.append(np.concatenate((user_embedding, movie_embedding)))
+            labels.append(row["label"])
+        else:
+            missing_embeddings += 1
 
-    X = np.array(X)
-    y = np.array(y)
+    if missing_embeddings:
+        system_logger.warning(
+            f"Skipped {missing_embeddings} interactions due to missing embeddings"
+        )
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+    if not features:
+        system_logger.error("No valid embeddings found for evaluation")
+        return 0, 0, 0, 0
+
+    # Split and train classifier
+    features = np.array(features)
+    labels = np.array(labels)
+
+    # Add this check before train_test_split
+    if len(np.unique(labels)) < 2:
+        system_logger.warning(
+            "Only one class present in evaluation labels; cannot train classifier."
+        )
+        return 0, 0, 0, 0
+
+    train_features, test_features, train_labels, test_labels = train_test_split(
+        features, labels, test_size=0.2, random_state=42
     )
 
-    # Train and evaluate Logistic Regression classifier
     classifier = LogisticRegression(random_state=42, solver="liblinear", max_iter=1000)
-    classifier.fit(X_train, y_train)
-    y_pred = classifier.predict(X_test)
-    current_accuracy = accuracy_score(y_test, y_pred)
-    current_precision_score = precision_score(y_test, y_pred)
-    current_recall_score = recall_score(y_test, y_pred)
-    current_f1_score = f1_score(y_test, y_pred)
+    classifier.fit(train_features, train_labels)
+    predicted_labels = classifier.predict(test_features)
 
-    print(f"F1-Score for current DeepWalk model: {current_f1_score:.4f}")
+    # Calculate metrics
+    accuracy = accuracy_score(test_labels, predicted_labels)
+    precision = precision_score(test_labels, predicted_labels)
+    recall = recall_score(test_labels, predicted_labels)
+    f1 = f1_score(test_labels, predicted_labels)
 
-    # Check if the current model is better
-    if current_f1_score > best_f1_score:
-        best_accuracy_score = current_accuracy
-        best_recall_score = current_recall_score
-        best_precision_score = current_precision_score
-        best_f1_score = current_f1_score
+    return accuracy, precision, recall, f1
 
-        best_deepwalk_model = current_deepwalk_model
-        best_params = params
 
-print("\n--- DeepWalk Hyperparameter Tuning Results ---")
-print(f"Best DeepWalk Parameters: {best_params}")
-print(f"Best Accuracy-Score achieved: {best_accuracy_score:.4f}")
-print(f"Best Recall-Score achieved: {best_recall_score:.4f}")
-print(f"Best Precision-Score achieved: {best_precision_score:.4f}")
-print(f"Best F1-Score achieved: {best_f1_score:.4f}")
+def run_tuning_pipeline():
+    """DeepWalk hyperparameter tuning pipeline"""
+    # Load processed interaction data
+    df = pd.read_csv(PathConfig.PROCESSED_DATA_FILE)
+    system_logger.info(
+        f"Loaded {len(df):,} interactions between "
+        f"{df['user_id'].nunique():,} users and "
+        f"{df['movie_id'].nunique():,} movies"
+    )
 
-# Ensure the 'models' directory exists
-models_dir = "models"
-os.makedirs(models_dir, exist_ok=True)
+    # Build interaction graph
+    graph = build_graph(df)
+    system_logger.info(
+        f"Graph built with {graph.number_of_nodes():,} nodes "
+        f"and {graph.number_of_edges():,} edges"
+    )
 
-# Save the best DeepWalk model
-if best_deepwalk_model:
-    best_deepwalk_model.save(str(PathConfig.DEEPWALK_MODEL_PATH))
-    print("Best DeepWalk model saved as %", PathConfig.DEEPWALK_BEST_MODEL_NAME)
+    # Define DeepWalk hyperparameter grid
+    param_grid = {
+        "embedding_size": [64, 128],
+        "window_size": [5, 10],
+        "num_walks": [5, 10],
+        "walk_length": [40, 80],
+        "epochs": [5, 10],
+    }
 
-# Prepare a dict containing both params and metrics
-best_results = {
-    "hyperparameters": best_params,
-    "metrics": {
-        "accuracy_score": best_accuracy_score,
-        "precision_score": best_precision_score,
-        "recall_score": best_recall_score,
-        "f1_score": best_f1_score,
-    },
-}
+    # Track best model and metrics
+    best_model = None
+    best_f1 = -1
+    best_metrics = {}
+    best_params = {}
 
-# Save the best_results to a JSON file
-best_params_path = PathConfig.DEEPWALK_BEST_PARAMS_PATH
-with open(best_params_path, "w") as f:
-    json.dump(best_results, f, indent=4)
-print("Best parameters and metrics saved to %", best_params_path)
+    # Iterate over hyperparameter combinations
+    keys = param_grid.keys()
+    total_combinations = len(list(itertools.product(*param_grid.values())))
+    current_iteration = 0
+
+    for values in itertools.product(*param_grid.values()):
+        current_iteration += 1
+        params = dict(zip(keys, values))
+        system_logger.info(
+            f"Training DeepWalk ({current_iteration}/{total_combinations}) "
+            f"with params: {params}"
+        )
+
+        # Generate random walks
+        walks = generate_random_walks(
+            graph, num_walks=params["num_walks"], walk_length=params["walk_length"]
+        )
+        system_logger.info(f"Generated {len(walks):,} random walks")
+
+        # Train DeepWalk model
+        model = train_deepwalk(
+            walks,
+            embedding_size=params["embedding_size"],
+            window_size=params["window_size"],
+            epochs=params["epochs"],
+        )
+
+        # Evaluate embeddings
+        accuracy, precision, recall, f1 = evaluate_embeddings(model, df)
+        system_logger.info(
+            f"Evaluation metrics: "
+            f"Accuracy={accuracy:.4f}, "
+            f"Precision={precision:.4f}, "
+            f"Recall={recall:.4f}, "
+            f"F1={f1:.4f}"
+        )
+
+        # Track best model
+        if f1 > best_f1:
+            best_f1 = f1
+            best_model = model
+            best_params = params
+            best_metrics = {
+                "accuracy": accuracy,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+            }
+            system_logger.info("New best model found!")
+
+    # Save best model and results
+    if best_model:
+        # Ensure models directory exists
+        PathConfig.MODEL_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Save model
+        best_model.save(str(PathConfig.DEEPWALK_MODEL_PATH))
+        system_logger.info(
+            f"Best DeepWalk model saved to: {PathConfig.DEEPWALK_MODEL_PATH}"
+        )
+
+        # Prepare results dictionary
+        results = {
+            "hyperparameters": best_params,
+            "metrics": best_metrics,
+            "dataset_stats": {
+                "interactions": len(df),
+                "users": df["user_id"].nunique(),
+                "movies": df["movie_id"].nunique(),
+            },
+        }
+
+        # Save results to JSON
+        with open(PathConfig.DEEPWALK_BEST_PARAMS_PATH, "w") as f:
+            json.dump(results, f, indent=4)
+        system_logger.info(
+            f"Best parameters and metrics saved to: "
+            f"{PathConfig.DEEPWALK_BEST_PARAMS_PATH}"
+        )
+
+        # Print summary
+        print("\n=== Tuning Results Summary ===")
+        print(f"Best F1 Score: {best_f1:.4f}")
+        print(f"Best Parameters: {best_params}")
+        print(f"Model saved to: {PathConfig.DEEPWALK_MODEL_PATH}")
+        print(f"Parameters saved to: {PathConfig.DEEPWALK_BEST_PARAMS_PATH}")
+
+
+if __name__ == "__main__":
+    try:
+        run_tuning_pipeline()
+    except Exception:
+        system_logger.exception("Hyperparameter tuning failed")
+        raise
