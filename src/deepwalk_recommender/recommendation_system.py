@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 08:16:08
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-23 23:47:31
+LastEditTime: 2025-06-24 01:06:10
 FilePath: src/deepwalk_recommender/recommendation_system.py
 Description: This script implements a recommendation system using a DeepWalk-based approach.
 """
@@ -51,7 +51,7 @@ class RecommendationSystem:
 
     def _create_user_movie_matrix(self):
         """
-        Generate user-movie interaction matrix with ratings.
+        Generate the user-movie interaction matrix with ratings.
 
         Creates a pivot table where:
         - Rows represent users
@@ -166,7 +166,7 @@ class RecommendationSystem:
 
         Formula:
             rating = 1 + 4 * (cosine_similarity + 1) / 2
-            (maps [-1,1] similarity to [1,5] rating scale)
+            (maps [-1,1] similarity to [1,5] rating scales)
 
         Args:
             user_id (int): User ID
@@ -209,7 +209,7 @@ class RecommendationSystem:
                 popularity: Popularity category
                 explanation: Recommendation rationale
         """
-        # Get movies user hasn't rated
+        # Get the movies the user hasn't rated
         user_movies = set(self.df[self.df["user_id"] == user_id]["movie_id"])
         valid_movies = set(self.movies_df["movie_id"])
         unrated_movies = valid_movies - user_movies
@@ -302,7 +302,7 @@ class RecommendationSystem:
         """
         Add new user-movie interaction to the system.
 
-        Updates both the ratings DataFrame and user-movie matrix.
+        Updates both the rating DataFrame and user-movie matrix.
 
         Args:
             user_id (int): User ID
