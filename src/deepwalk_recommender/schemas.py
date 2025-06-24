@@ -2,7 +2,7 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 21:33:28
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 04:01:46
+LastEditTime: 2025-06-24 04:05:25
 FilePath: src/deepwalk_recommender/schemas.py
 Description: This module defines Pydantic models for request and response schemas used in the FastAPI application for movie recommendations.
 """
