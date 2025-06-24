@@ -5,11 +5,12 @@ A FastAPI-powered movie recommendation system that leverages DeepWalk graph embe
 ---
 
 ## Features
-	•	Graph-based Recommendations using DeepWalk for learning embeddings from user-movie interactions.
-	•	FastAPI REST Endpoints for interactions, recommendations, and listing movies.
-	•	Hyperparameter Tuning for optimizing DeepWalk training.
-	•	Structured Logging for traceability and debugging.
-	•	Comprehensive Testing using Pytest.
+
+-	Graph-based Recommendations using DeepWalk for learning embeddings from user-movie interactions.
+-	FastAPI REST Endpoints for interactions, recommendations, and listing movies.
+-	Hyperparameter Tuning for optimizing DeepWalk training.
+-	Structured Logging for traceability and debugging.
+-	Comprehensive Testing using Pytest.
 
 ---
 
