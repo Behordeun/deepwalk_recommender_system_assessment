@@ -1,6 +1,6 @@
 ## Recommendation Algorithm: Deep Walk-Based Movie Recommendation System
 
-The movie recommendation system was developed based on a **Deep Walk-style Graph Neural Network (GNN)** approach. This system was designed to recommend movies to users by leveraging their historical preferences and the intricate relationships between users and movies, uncovering nuanced patterns in taste.
+The movie recommendation system was developed based on a **Deep Walk-style Graph Neural Network (GNN)** approach. The system was designed to recommend movies to users by leveraging their historical preferences and the intricate relationships between users and movies, uncovering nuanced patterns in taste.
 
 ---
 
