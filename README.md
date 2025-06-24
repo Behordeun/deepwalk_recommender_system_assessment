@@ -230,16 +230,16 @@ src/__init__.py                                         0      0   100%
 src/deepwalk_recommender/__init__.py                    0      0   100%
 src/deepwalk_recommender/config.py                     15      0   100%
 src/deepwalk_recommender/data_preprocessing.py         24      9    62%   74-87, 93-99
-src/deepwalk_recommender/deepwalk_model.py             58     39    33%   88-98, 126-143, 170-179, 183-216
+src/deepwalk_recommender/deepwalk_model.py             58     14    76%   183-216
 src/deepwalk_recommender/error_logger.py               88     17    81%   156-157, 190-191, 260-271, 287, 296-303
 src/deepwalk_recommender/evaluate_and_tune.py         139      6    96%   82, 375-379
 src/deepwalk_recommender/main.py                       72     12    83%   56-78, 281-283
 src/deepwalk_recommender/recommendation_system.py     105      3    97%   238, 240, 242
 src/deepwalk_recommender/schemas.py                    23      0   100%
 ---------------------------------------------------------------------------------
-TOTAL                                                 524     86    84%
+TOTAL                                                 524     61    88%
 Coverage HTML written to dir coverage
-48 passed, 1 warning in 5.62s
+56 passed, 1 warning in 14.31s
 ```
 
 ---
