@@ -78,3 +78,5 @@ The choice of `gensim` for the Word2Vec (Skip-gram) implementation was justified
 5.  As an open-source library with an active community, `gensim` benefited from continuous improvements and readily available support, which I found valuable for maintaining and extending the project.
 
 In summary, `gensim` provided a reliable, performant, and user-friendly solution for learning Deep Walk embeddings, making it an excellent choice for this movie recommendation engine, especially considering its ability to scale to larger datasets in future iterations.
+
+---

@@ -203,7 +203,7 @@ curl -X POST http://localhost:8000/interactions \
 Run unit and integration tests:
 
 ```bash
-pytest tests/
+pytest --tb=short -q --cov=src --cov-report=term-missing --cov-report=html:coverage
 ```
 
 or
