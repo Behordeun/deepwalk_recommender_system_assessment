@@ -2,14 +2,21 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-22 21:33:28
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 04:05:25
+LastEditTime: 2025-06-24 04:18:06
 FilePath: src/deepwalk_recommender/schemas.py
 Description: This module defines Pydantic models for request and response schemas used in the FastAPI application for movie recommendations.
 """
 
-from typing import Any, Dict, List
+from typing import List
 
 from pydantic import BaseModel
+
+
+class UserInfo(BaseModel):
+    age: int
+    gender: str
+    occupation: str
+    zip_code: str
 
 
 # Pydantic models for request/response
@@ -31,5 +38,5 @@ class RecommendedItem(BaseModel):
 
 class RecommendationResponse(BaseModel):
     user_id: int
-    user_info: Dict[str, Any]
+    user_info: UserInfo
     recommended_items: List[RecommendedItem]
