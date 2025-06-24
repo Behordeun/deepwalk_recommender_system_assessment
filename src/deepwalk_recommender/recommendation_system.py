@@ -2,17 +2,20 @@
 Author: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
 Date: 2025-06-23 08:16:08
 LastEditors: Muhammad Abiodun SULAIMAN abiodun.msulaiman@gmail.com
-LastEditTime: 2025-06-24 01:06:10
+LastEditTime: 2025-06-24 04:15:57
 FilePath: src/deepwalk_recommender/recommendation_system.py
 Description: This script implements a recommendation system using a DeepWalk-based approach.
 """
 
 from collections import Counter
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 from gensim.models import Word2Vec
 from sklearn.metrics.pairwise import cosine_similarity
+
+from src.deepwalk_recommender.schemas import UserInfo
 
 
 class RecommendationSystem:
@@ -334,17 +337,22 @@ class RecommendationSystem:
         cleaned_df = cleaned_df.fillna("")
         return cleaned_df.to_dict(orient="records")
 
-    def get_user_info(self, user_id):
+    def get_user_info(self, user_id: int) -> Optional[UserInfo]:
         """
-        Retrieve metadata for a specific user.
+        Retrieve metadata for a specific user and return it as a UserInfo Pydantic model.
 
         Args:
             user_id (int): User ID
 
         Returns:
-            dict or None: User metadata if found, else None
+            UserInfo or None: User metadata as a Pydantic model if found, else None
         """
-        user_info = self.users_df[self.users_df["user_id"] == user_id]
-        if not user_info.empty:
-            return user_info.iloc[0].to_dict()
+        user_data = self.users_df[self.users_df["user_id"] == user_id]
+        if not user_data.empty:
+            user_dict = user_data.iloc[0].to_dict()
+            # Remove 'user_id' from the dictionary before passing to UserInfo,
+            # as UserInfo schema is expected to no longer contain 'user_id'.
+            if "user_id" in user_dict:
+                del user_dict["user_id"]
+            return UserInfo(**user_dict)
         return None
